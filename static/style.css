@@ -1,11 +1,33 @@
-p.hister-action { margin-top: 1em; }
+p.hister-action {
+    margin-top: 1em;
+}
 
 p.hister-action a.hister-send-btn {
     cursor: pointer;
     text-decoration: none;
-    transition: color 0.15s ease-in-out;
+    transition: color 0.15s ease-in-out, opacity 0.15s ease;
+    display: inline-flex;
+    align-items: center;
 }
 
 p.hister-action a.hister-send-btn:hover {
     color: #ff6b35;
+}
+
+p.hister-action a.hister-send-btn.loading {
+    opacity: 0.5;
+    cursor: wait;
+    pointer-events: none;
+}
+
+p.hister-action a.hister-send-btn.success {
+    color: #28a745 !important;
+}
+
+p.hister-action a.hister-send-btn.queued {
+    color: #17a2b8 !important;
+}
+
+p.hister-action a.hister-send-btn.failed {
+    color: #dc3545 !important;
 }
