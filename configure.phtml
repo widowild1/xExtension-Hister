@@ -119,6 +119,63 @@ $this->registerTranslates();
 
     <div class="form-group">
         <div class="group-controls">
+            <label class="checkbox" for="clean_tracking">
+                <input type="checkbox" id="clean_tracking" name="clean_tracking" value="1"
+                    <?= $this->isCleanTracking() ? 'checked="checked"' : '' ?> />
+                <?= _t('ext.hister.clean_tracking') ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="extra_tracking_params"><?= _t('ext.hister.extra_tracking_params') ?></label>
+        <div class="group-controls">
+            <input type="text" id="extra_tracking_params" name="extra_tracking_params" class="input-text"
+                   value="<?= htmlspecialchars($this->getExtraTrackingParams(), ENT_QUOTES, 'UTF-8') ?>"
+                   placeholder="source, share_*" />
+            <p class="help"><?= _t('ext.hister.extra_tracking_params_help') ?></p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="flaresolverr_enabled">
+                <input type="checkbox" id="flaresolverr_enabled" name="flaresolverr_enabled" value="1"
+                    <?= $this->isFlareEnabled() ? 'checked="checked"' : '' ?> />
+                <?= _t('ext.hister.flaresolverr_enabled') ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="flaresolverr_url"><?= _t('ext.hister.flaresolverr_url') ?></label>
+        <div class="group-controls">
+            <input type="url" id="flaresolverr_url" name="flaresolverr_url" class="input-text"
+                   value="<?= htmlspecialchars($this->getFlareUrl(), ENT_QUOTES, 'UTF-8') ?>"
+                   placeholder="http://127.0.0.1:8191" />
+            <p class="help"><?= _t('ext.hister.flaresolverr_url_help') ?></p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="flaresolverr_timeout"><?= _t('ext.hister.flaresolverr_timeout') ?></label>
+        <div class="group-controls">
+            <input type="number" id="flaresolverr_timeout" name="flaresolverr_timeout" class="input-text"
+                   min="10" max="300" value="<?= (int)$this->getFlareTimeout() ?>" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="flush_seconds"><?= _t('ext.hister.flush_seconds') ?></label>
+        <div class="group-controls">
+            <input type="number" id="flush_seconds" name="flush_seconds" class="input-text"
+                   min="10" max="600" value="<?= (int)$this->getFlushSeconds() ?>" />
+            <p class="help"><?= _t('ext.hister.flush_seconds_help') ?></p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
             <label class="checkbox" for="verify_ssl">
                 <input type="checkbox" id="verify_ssl" name="verify_ssl" value="1"
                     <?= $this->isVerifySsl() ? 'checked="checked"' : '' ?> />
@@ -127,8 +184,12 @@ $this->registerTranslates();
         </div>
     </div>
 
+    <p class="help"><?= _t('ext.hister.queue_size', $this->queueSize()) ?></p>
+
     <div class="form-actions">
         <button type="submit" class="btn btn-important"><?= _t('gen.action.submit') ?></button>
+        <button type="submit" name="test_flare" value="1" class="btn"><?= _t('ext.hister.test_flare') ?></button>
+        <button type="submit" name="bulk_enqueue" value="1" class="btn"><?= _t('ext.hister.bulk_enqueue') ?></button>
         <button type="submit" name="sync_now" value="1" class="btn"><?= _t('ext.hister.sync_now') ?></button>
         <button type="reset" class="btn"><?= _t('gen.action.cancel') ?></button>
         <?php if ($this->syncResult !== '') { ?>
