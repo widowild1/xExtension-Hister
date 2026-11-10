@@ -2,16 +2,14 @@
 
 declare(strict_types=1);
 
-class FreshExtension_Hister extends Minz_Extension {
+class HisterExtension extends Minz_Extension {
 
     public function init(): void {
         $this->registerTranslates();
         $this->registerController('hister');
 
-        // Ajout du bouton d'action sous chaque article
         Minz_ExtensionManager::addHook('menu_entry', [$this, 'addMenuEntry']);
 
-        // Synchronisation automatique si activée
         if ((bool)$this->getUserConfigurationValue('auto_sync_all')) {
             Minz_ExtensionManager::addHook('entry_before_insert', [$this, 'hookEntryBeforeInsert']);
         }
