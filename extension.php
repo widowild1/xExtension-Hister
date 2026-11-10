@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-class HisterExtension extends Minz_Extension {
+class FreshExtension_Hister extends Minz_Extension {
 
     public function init(): void {
         $this->registerTranslates();
         $this->registerController('hister');
 
         // Ajout du bouton d'action sous chaque article
-        $this->registerHook('menu_entry', [$this, 'addMenuEntry']);
+        Minz_ExtensionManager::addHook('menu_entry', [$this, 'addMenuEntry']);
 
-        // Synchronisation automatique à l'insertion si activée
+        // Synchronisation automatique si activée
         if ((bool)$this->getUserConfigurationValue('auto_sync_all')) {
-            $this->registerHook('entry_before_insert', [$this, 'hookEntryBeforeInsert']);
+            Minz_ExtensionManager::addHook('entry_before_insert', [$this, 'hookEntryBeforeInsert']);
         }
     }
 
@@ -23,14 +23,14 @@ class HisterExtension extends Minz_Extension {
         if (Minz_Request::isPost()) {
             FreshRSS_Form_Token::validate();
 
-            $apiUrl = rtrim(Minz_Request::paramString('api_url', 'https://demo.hister.org'), '/');
-            $apiToken = Minz_Request::paramString('api_token', '');
-            $endpointPath = '/' . ltrim(Minz_Request::paramString('endpoint_path', '/api/v1/bookmarks'), '/');
-            $defaultTags = Minz_Request::paramString('default_tags', '');
-            $includeCategory = Minz_Request::paramBoolean('include_category_tag');
-            $includeFeed = Minz_Request::paramBoolean('include_feed_tag');
-            $autoSyncAll = Minz_Request::paramBoolean('auto_sync_all');
-            $verifySsl = Minz_Request::paramBoolean('verify_ssl');
+            $apiUrl = rtrim((string)Minz_Request::param('api_url', 'https://demo.hister.org'), '/');
+            $apiToken = (string)Minz_Request::param('api_token', '');
+            $endpointPath = '/' . ltrim((string)Minz_Request::param('endpoint_path', '/api/v1/bookmarks'), '/');
+            $defaultTags = (string)Minz_Request::param('default_tags', '');
+            $includeCategory = !empty(Minz_Request::param('include_category_tag'));
+            $includeFeed = !empty(Minz_Request::param('include_feed_tag'));
+            $autoSyncAll = !empty(Minz_Request::param('auto_sync_all'));
+            $verifySsl = !empty(Minz_Request::param('verify_ssl'));
 
             $this->setUserConfigurationValue('api_url', $apiUrl);
             $this->setUserConfigurationValue('api_token', $apiToken);
@@ -60,9 +60,6 @@ class HisterExtension extends Minz_Extension {
         return $entry;
     }
 
-    /**
-     * Envoi HTTP non-bloquant de l'article vers l'API Hister avec conservation des tags et métadonnées
-     */
     public function sendToHister(FreshRSS_Entry $entry): bool {
         $apiUrl = (string)$this->getUserConfigurationValue('api_url');
         $apiToken = (string)$this->getUserConfigurationValue('api_token');
@@ -77,7 +74,6 @@ class HisterExtension extends Minz_Extension {
             $endpointPath = '/api/v1/bookmarks';
         }
 
-        // Assemblage des tags (valeurs par défaut + catégorie + titre du flux)
         $tags = [];
         $configuredTags = (string)$this->getUserConfigurationValue('default_tags');
         if ($configuredTags !== '') {
@@ -107,8 +103,6 @@ class HisterExtension extends Minz_Extension {
         }
 
         $tags = array_values(array_unique($tags));
-
-        // Formatage du contenu / extrait textuel propre
         $rawContent = (string)$entry->content();
         $cleanNotes = mb_substr(trim(strip_tags($rawContent)), 0, 500, 'UTF-8');
 
