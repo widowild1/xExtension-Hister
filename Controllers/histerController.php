@@ -10,6 +10,12 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
+        // Exige obligatoirement POST et un jeton CSRF valide
+        if (!Minz_Request::isPost() || !FreshRSS_Auth::isCsrfOk()) {
+            Minz_Error::error(403);
+            return;
+        }
+
         $entryId = Minz_Request::param('id');
         $entryDAO = FreshRSS_Factory::createEntryDao();
         $entry = $entryDAO->searchById($entryId);
@@ -71,21 +77,13 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         }
     }
 
-    /** Exécute une action d'administration sécurisée. */
     private function runConfigurationTask(callable $task): void {
         if (!FreshRSS_Auth::hasAccess()) {
             Minz_Error::error(403);
             return;
         }
 
-        // Si l'URL est visitée en GET, on redirige gentiment vers la page de configuration
-        if (!Minz_Request::isPost()) {
-            $this->backToConfiguration('Action accessible uniquement via le formulaire.', false);
-            return;
-        }
-
-        // Validation CSRF native FreshRSS
-        if (!FreshRSS_Auth::isCsrfOk()) {
+        if (!Minz_Request::isPost() || !FreshRSS_Auth::isCsrfOk()) {
             Minz_Error::error(403);
             return;
         }

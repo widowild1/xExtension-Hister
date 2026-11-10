@@ -15,15 +15,32 @@
         }
 
         const originalText = btn.textContent;
-        btn.classList.add('loading');
-        btn.textContent = '⏳ Envoi...';
+        const actionUrl = btn.getAttribute('data-action');
+        const entryId = btn.getAttribute('data-id');
+        const csrfToken = btn.getAttribute('data-csrf');
 
-        fetch(btn.href, {
-            method: 'GET',
+        const msgSending = btn.getAttribute('data-i18n-sending') || '⏳ Envoi...';
+        const msgSuccess = btn.getAttribute('data-i18n-success') || '✔ Transmis à Hister';
+        const msgQueued  = btn.getAttribute('data-i18n-queued')  || '⌛ En file d\'attente';
+        const msgFailed  = btn.getAttribute('data-i18n-failed')  || '✖ Échec de transmission';
+        const msgNetwork = btn.getAttribute('data-i18n-network') || '✖ Erreur réseau';
+
+        btn.classList.add('loading');
+        btn.textContent = msgSending;
+
+        const bodyData = new URLSearchParams({
+            _csrf: csrfToken,
+            id: entryId
+        });
+
+        fetch(actionUrl, {
+            method: 'POST',
             headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json'
-            }
+            },
+            body: bodyData.toString()
         })
         .then(function (res) {
             return res.json().catch(function () {
@@ -35,13 +52,13 @@
 
             if (data.status === 'ok') {
                 btn.classList.add('success');
-                btn.textContent = '✔ Transmis à Hister';
+                btn.textContent = msgSuccess;
             } else if (data.status === 'queued') {
                 btn.classList.add('queued');
-                btn.textContent = '⌛ En file d\'attente';
+                btn.textContent = msgQueued;
             } else {
                 btn.classList.add('failed');
-                btn.textContent = '✖ Échec de transmission';
+                btn.textContent = msgFailed;
                 setTimeout(function () {
                     btn.classList.remove('failed');
                     btn.textContent = originalText;
@@ -51,7 +68,7 @@
         .catch(function () {
             btn.classList.remove('loading');
             btn.classList.add('failed');
-            btn.textContent = '✖ Erreur réseau';
+            btn.textContent = msgNetwork;
             setTimeout(function () {
                 btn.classList.remove('failed');
                 btn.textContent = originalText;

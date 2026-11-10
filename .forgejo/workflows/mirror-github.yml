@@ -11,6 +11,8 @@ jobs:
   security-and-lint:
     name: 🛡️ Contrôle de Sécurité & Linting
     runs-on: docker
+    container:
+      image: php:8.3-cli
     steps:
       - name: Récupération du dépôt
         uses: actions/checkout@v4
@@ -21,7 +23,6 @@ jobs:
         run: |
           echo "Audit des données privées dans le code..."
           FORBIDDEN_REGEX="(mojo\.ovh|@noreply\.localhost)"
-          
           if grep -rnEI "$FORBIDDEN_REGEX" --exclude-dir=".git" --exclude-dir=".forgejo" .; then
             echo "❌ ÉCHEC : Données privées ou domaines internes détectés !"
             exit 1
@@ -41,20 +42,16 @@ jobs:
         run: |
           AUTHOR=$(grep -o '"author": "[^"]*"' metadata.json | cut -d'"' -f4)
           if [ "$AUTHOR" != "widowild" ]; then
-            echo "❌ ÉCHEC : L'auteur dans metadata.json doit strictement être 'widowild' (trouvé : '$AUTHOR')."
+            echo "❌ ÉCHEC : L'auteur dans metadata.json doit être 'widowild' (trouvé : '$AUTHOR')."
             exit 1
           fi
           echo "✅ Métadonnées auteur conformes (widowild)."
 
-      - name: 4. Validation de la syntaxe PHP
+      - name: 4. Validation stricte de la syntaxe PHP
         run: |
           echo "Validation de la syntaxe des scripts..."
-          if command -v php >/dev/null 2>&1; then
-            find . -type f \( -name "*.php" -o -name "*.phtml" \) -not -path "*/.*" -exec php -l {} \; > /dev/null
-            echo "✅ Fichiers PHP et PHTML syntaxiquement valides."
-          else
-            echo "ℹ️ PHP non présent dans l'image runner, contrôle syntaxique ignoré."
-          fi
+          find . -type f \( -name "*.php" -o -name "*.phtml" \) -not -path "*/.*" -exec php -l {} +
+          echo "✅ Tous les fichiers PHP et templates PHTML sont syntaxiquement valides."
 
   push-to-github:
     name: 🚀 Déploiement vers GitHub
@@ -71,7 +68,7 @@ jobs:
           git config user.name "widowild1"
           git config user.email "widowild1@users.noreply.github.com"
 
-      - name: Push miroir vers GitHub
+      - name: Push miroir vers GitHub (sans token dans l'URL)
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
@@ -79,7 +76,9 @@ jobs:
             echo "❌ ÉCHEC : Le secret GH_PAT est introuvable dans les réglages Forgejo."
             exit 1
           fi
-          
-          git remote add github "https://widowild1:${GH_PAT}@github.com/widowild1/xExtension-Hister.git"
+
+          git remote add github "https://github.com/widowild1/xExtension-Hister.git"
+          BASIC_AUTH=$(printf "widowild1:%s" "$GH_PAT" | base64 -w 0)
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $BASIC_AUTH"
           git push github main --force --tags
           echo "✅ Synchronisation réussie vers GitHub (widowild1/xExtension-Hister) !"
