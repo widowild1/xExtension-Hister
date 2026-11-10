@@ -2,7 +2,7 @@
   "name": "Hister",
   "author": "widowild1",
   "description": "Intégration rapide entre FreshRSS et Hister via son API (/api/add), avec tags envoyés dans le label.",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "entrypoint": "Hister",
   "type": "user"
 }
