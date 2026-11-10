@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'hister' => [
         'api_url' => 'URL de l\'instance Hister',
@@ -27,13 +29,14 @@ return [
         'queued_notification' => 'Hister est indisponible : l\'article est en file d\'attente et sera envoyé plus tard.',
         'clean_tracking' => 'Nettoyer les liens de tracking (utm_*, fbclid, gclid… et redirections Google/Facebook)',
         'extra_tracking_params' => 'Paramètres de tracking supplémentaires',
-        'extra_tracking_params_help' => 'Séparés par des virgules ; « * » en fin de nom pour un préfixe (ex. : share_*).',
+        'extra_tracking_params_help' => 'Séparés par des virgules ; * en fin de nom pour un préfixe (ex. : share_*).',
         'flaresolverr_enabled' => 'Récupérer la page de chaque lien via FlareSolverr (contourne l\'anti-bot Cloudflare)',
         'flaresolverr_url' => 'URL de FlareSolverr',
         'flaresolverr_url_help' => 'Exemple : http://127.0.0.1:8191 (le /v1 est ajouté automatiquement). Les pages sont récupérées en arrière-plan via la file d\'attente.',
         'flaresolverr_timeout' => 'Délai maximal par page (secondes)',
         'flush_seconds' => 'Durée maximale de traitement de la file par actualisation (secondes)',
         'flush_seconds_help' => 'FlareSolverr met plusieurs secondes par page : une actualisation plus fréquente (cron) vide la file plus vite.',
+        'test_hister' => 'Tester Hister',
         'test_flare' => 'Tester FlareSolverr',
         'bulk_enqueue' => 'Mettre en file tous les articles existants',
     ],
