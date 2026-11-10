@@ -17,16 +17,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 1. Détection anti-fuite PII & Domaines Privés
+      - name: 1. Détection anti-fuite Domaines Privés & E-mails internes
         run: |
           echo "Audit des données privées dans le code..."
-          FORBIDDEN_REGEX="(mojo\.ovh|widowild1|@noreply\.localhost)"
+          FORBIDDEN_REGEX="(mojo\.ovh|@noreply\.localhost)"
           
           if grep -rnEI "$FORBIDDEN_REGEX" --exclude-dir=".git" --exclude-dir=".forgejo" .; then
-            echo "❌ ÉCHEC : Données privées ou identifiants internes détectés !"
+            echo "❌ ÉCHEC : Données privées ou domaines internes détectés !"
             exit 1
           fi
-          echo "✅ Aucun domaine privé ni identifiant non désiré trouvé."
+          echo "✅ Aucun domaine privé ni identifiant interne trouvé."
 
       - name: 2. Détection des tokens et secrets en dur
         run: |
@@ -49,8 +49,12 @@ jobs:
       - name: 4. Validation de la syntaxe PHP
         run: |
           echo "Validation de la syntaxe des scripts..."
-          find . -type f \( -name "*.php" -o -name "*.phtml" \) -not -path "*/.*" -exec php -l {} \; > /dev/null
-          echo "✅ Tous les fichiers PHP et templates PHTML sont syntaxiquement valides."
+          if command -v php >/dev/null 2>&1; then
+            find . -type f \( -name "*.php" -o -name "*.phtml" \) -not -path "*/.*" -exec php -l {} \; > /dev/null
+            echo "✅ Fichiers PHP et PHTML syntaxiquement valides."
+          else
+            echo "ℹ️ PHP non présent dans l'image runner, contrôle syntaxique ignoré."
+          fi
 
   push-to-github:
     name: 🚀 Déploiement vers GitHub
@@ -62,10 +66,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Normalisation de l'identité du committer
+      - name: Configuration de l'identité GitHub
         run: |
-          git config user.name "widowild"
-          git config user.email "widowild@users.noreply.github.com"
+          git config user.name "widowild1"
+          git config user.email "widowild1@users.noreply.github.com"
 
       - name: Push miroir vers GitHub
         env:
@@ -76,9 +80,6 @@ jobs:
             exit 1
           fi
           
-          # Configuration du remote sécurisé avec le token
-          git remote add github "https://widowild:${GH_PAT}@github.com/widowild/xExtension-Hister.git"
-          
-          # Envoi forcé de la branche et des tags
+          git remote add github "https://widowild1:${GH_PAT}@github.com/widowild1/xExtension-Hister.git"
           git push github main --force --tags
-          echo "✅ Synchronisation réussie vers GitHub !"
+          echo "✅ Synchronisation réussie vers GitHub (widowild1/xExtension-Hister) !"
