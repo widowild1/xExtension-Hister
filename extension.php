@@ -10,7 +10,7 @@ class HisterExtension extends Minz_Extension {
 
         Minz_ExtensionManager::addHook('menu_entry', [$this, 'addMenuEntry']);
 
-        if ((bool)$this->getUserConfigurationValue('auto_sync_all')) {
+        if ($this->isAutoSyncAll()) {
             Minz_ExtensionManager::addHook('entry_before_insert', [$this, 'hookEntryBeforeInsert']);
         }
     }
@@ -19,8 +19,6 @@ class HisterExtension extends Minz_Extension {
         $this->registerTranslates();
 
         if (Minz_Request::isPost()) {
-            FreshRSS_Form_Token::validate();
-
             $apiUrl = rtrim((string)Minz_Request::param('api_url', 'https://demo.hister.org'), '/');
             $apiToken = (string)Minz_Request::param('api_token', '');
             $endpointPath = '/' . ltrim((string)Minz_Request::param('endpoint_path', '/api/v1/bookmarks'), '/');
@@ -41,6 +39,41 @@ class HisterExtension extends Minz_Extension {
         }
     }
 
+    public function getApiUrl(): string {
+        $val = (string)$this->getUserConfigurationValue('api_url');
+        return $val !== '' ? $val : 'https://demo.hister.org';
+    }
+
+    public function getEndpointPath(): string {
+        $val = (string)$this->getUserConfigurationValue('endpoint_path');
+        return $val !== '' ? $val : '/api/v1/bookmarks';
+    }
+
+    public function getApiToken(): string {
+        return (string)$this->getUserConfigurationValue('api_token');
+    }
+
+    public function getDefaultTags(): string {
+        return (string)$this->getUserConfigurationValue('default_tags');
+    }
+
+    public function isIncludeCategoryTag(): bool {
+        return (bool)$this->getUserConfigurationValue('include_category_tag');
+    }
+
+    public function isIncludeFeedTag(): bool {
+        return (bool)$this->getUserConfigurationValue('include_feed_tag');
+    }
+
+    public function isAutoSyncAll(): bool {
+        return (bool)$this->getUserConfigurationValue('auto_sync_all');
+    }
+
+    public function isVerifySsl(): bool {
+        $val = $this->getUserConfigurationValue('verify_ssl');
+        return $val === null ? true : (bool)$val;
+    }
+
     public function addMenuEntry(FreshRSS_Entry $entry): string {
         $sendUrl = _url('hister', 'send', 'id', $entry->id());
         $title = _t('ext.hister.send_button_title');
@@ -59,21 +92,17 @@ class HisterExtension extends Minz_Extension {
     }
 
     public function sendToHister(FreshRSS_Entry $entry): bool {
-        $apiUrl = (string)$this->getUserConfigurationValue('api_url');
-        $apiToken = (string)$this->getUserConfigurationValue('api_token');
-        $endpointPath = (string)$this->getUserConfigurationValue('endpoint_path');
+        $apiUrl = $this->getApiUrl();
+        $apiToken = $this->getApiToken();
+        $endpointPath = $this->getEndpointPath();
 
-        if ($apiUrl === '' || $apiToken === '') {
-            Minz_Log::warning('Hister Extension: URL ou Token API manquant.');
+        if ($apiToken === '') {
+            Minz_Log::warning('Hister: token API manquant pour l\'envoi.');
             return false;
         }
 
-        if ($endpointPath === '') {
-            $endpointPath = '/api/v1/bookmarks';
-        }
-
         $tags = [];
-        $configuredTags = (string)$this->getUserConfigurationValue('default_tags');
+        $configuredTags = $this->getDefaultTags();
         if ($configuredTags !== '') {
             $rawList = explode(',', $configuredTags);
             foreach ($rawList as $tag) {
@@ -86,14 +115,14 @@ class HisterExtension extends Minz_Extension {
 
         $feed = $entry->feed();
         if ($feed !== null) {
-            if ((bool)$this->getUserConfigurationValue('include_category_tag')) {
+            if ($this->isIncludeCategoryTag()) {
                 $cat = $feed->category();
                 if ($cat !== null && trim($cat->name()) !== '') {
                     $tags[] = trim($cat->name());
                 }
             }
 
-            if ((bool)$this->getUserConfigurationValue('include_feed_tag')) {
+            if ($this->isIncludeFeedTag()) {
                 if (trim($feed->name()) !== '') {
                     $tags[] = trim($feed->name());
                 }
@@ -129,8 +158,8 @@ class HisterExtension extends Minz_Extension {
                 'Authorization: Bearer ' . $apiToken,
                 'User-Agent: FreshRSS-Hister-Client/2.0.0',
             ],
-            CURLOPT_SSL_VERIFYPEER => (bool)$this->getUserConfigurationValue('verify_ssl'),
-            CURLOPT_SSL_VERIFYHOST => (bool)$this->getUserConfigurationValue('verify_ssl') ? 2 : 0,
+            CURLOPT_SSL_VERIFYPEER => $this->isVerifySsl(),
+            CURLOPT_SSL_VERIFYHOST => $this->isVerifySsl() ? 2 : 0,
         ]);
 
         $response = curl_exec($ch);
