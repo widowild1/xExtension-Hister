@@ -1,0 +1,84 @@
+name: Security Audit & Mirror to GitHub
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  security-and-lint:
+    name: 🛡️ Contrôle de Sécurité & Linting
+    runs-on: docker
+    steps:
+      - name: Récupération du dépôt
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 1. Détection anti-fuite PII & Domaines Privés
+        run: |
+          echo "Audit des données privées dans le code..."
+          FORBIDDEN_REGEX="(mojo\.ovh|widowild1|@noreply\.localhost)"
+          
+          if grep -rnEI "$FORBIDDEN_REGEX" --exclude-dir=".git" --exclude-dir=".forgejo" .; then
+            echo "❌ ÉCHEC : Données privées ou identifiants internes détectés !"
+            exit 1
+          fi
+          echo "✅ Aucun domaine privé ni identifiant non désiré trouvé."
+
+      - name: 2. Détection des tokens et secrets en dur
+        run: |
+          echo "Vérification de l'absence de tokens API réels..."
+          if grep -rnEI "api_token\s*=\s*['\"][a-zA-Z0-9_-]{20,}['\"]" --exclude-dir=".git" .; then
+            echo "❌ ÉCHEC : Un token d'authentification semble être écrit en dur !"
+            exit 1
+          fi
+          echo "✅ Aucun token en clair détecté."
+
+      - name: 3. Contrôle de l'identité de l'auteur
+        run: |
+          AUTHOR=$(grep -o '"author": "[^"]*"' metadata.json | cut -d'"' -f4)
+          if [ "$AUTHOR" != "widowild" ]; then
+            echo "❌ ÉCHEC : L'auteur dans metadata.json doit strictement être 'widowild' (trouvé : '$AUTHOR')."
+            exit 1
+          fi
+          echo "✅ Métadonnées auteur conformes (widowild)."
+
+      - name: 4. Validation de la syntaxe PHP
+        run: |
+          echo "Validation de la syntaxe des scripts..."
+          find . -type f \( -name "*.php" -o -name "*.phtml" \) -not -path "*/.*" -exec php -l {} \; > /dev/null
+          echo "✅ Tous les fichiers PHP et templates PHTML sont syntaxiquement valides."
+
+  push-to-github:
+    name: 🚀 Déploiement vers GitHub
+    needs: security-and-lint
+    runs-on: docker
+    steps:
+      - name: Récupération du code complet
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalisation de l'identité du committer
+        run: |
+          git config user.name "widowild"
+          git config user.email "widowild@users.noreply.github.com"
+
+      - name: Push miroir vers GitHub
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -z "$GH_PAT" ]; then
+            echo "❌ ÉCHEC : Le secret GH_PAT est introuvable dans les réglages Forgejo."
+            exit 1
+          fi
+          
+          # Configuration du remote sécurisé avec le token
+          git remote add github "https://widowild:${GH_PAT}@github.com/widowild/xExtension-Hister.git"
+          
+          # Envoi forcé de la branche et des tags
+          git push github main --force --tags
+          echo "✅ Synchronisation réussie vers GitHub !"
