@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-class HisterExtension extends Minz_Extension {
+final class HisterExtension extends Minz_Extension {
 
     private const DEFAULT_URL = 'http://127.0.0.1:4433';
     private const DEFAULT_ENDPOINT = '/api/add';
@@ -11,62 +11,67 @@ class HisterExtension extends Minz_Extension {
     private const MAX_HTML_BYTES = 4 * 1024 * 1024;
     private const DEFAULT_FLARE_URL = 'http://127.0.0.1:8191';
 
-    /** Une fois Hister injoignable pendant une requête, on n'insiste plus (évite de bloquer l'actualisation des flux). */
+    /** Une fois Hister injoignable pendant une requête, on suspend les envois directs pour éviter de bloquer le cron. */
     private static bool $circuitOpen = false;
-
-
     private bool $lastQueued = false;
 
-    /** FlareSolverr injoignable pendant cette requête : on laisse les articles en file au lieu d'insister. */
+    /** FlareSolverr injoignable : on laisse les articles en file au lieu d'insister. */
     private static bool $flareDown = false;
 
+    #[\Override]
     public function init(): void {
         $this->registerTranslates();
         $this->registerController('hister');
+
         Minz_View::appendStyle($this->getFileUrl('style.css', 'css'));
+        Minz_View::appendScript($this->getFileUrl('script.js', 'js'));
 
         Minz_ExtensionManager::addHook('entry_before_display', [$this, 'addSendLink']);
 
         if ($this->isAutoSyncAll()) {
             Minz_ExtensionManager::addHook('entry_before_insert', [$this, 'hookEntryBeforeInsert']);
         }
+
         if ($this->isAutoSyncAll() || $this->isSyncStarred() || $this->isSyncLabeled()) {
             Minz_ExtensionManager::addHook('post_update', [$this, 'hookPostUpdate']);
         }
     }
 
+    #[\Override]
     public function handleConfigureAction(): void {
         $this->registerTranslates();
 
         if (Minz_Request::isPost()) {
+            FreshRSS_Form_Token::validate();
             $this->saveSettingsFromRequest();
         }
     }
 
-    /** Enregistre les réglages du formulaire (utilisé par « Valider » et par les boutons d'action). */
+    /** Enregistre les réglages du formulaire. */
     public function saveSettingsFromRequest(): void {
-            $apiUrl = rtrim((string)Minz_Request::param('api_url', ''), '/');
-            $endpointPath = '/' . ltrim((string)Minz_Request::param('endpoint_path', ''), '/');
+        $apiUrl = rtrim((string)Minz_Request::param('api_url', ''), '/');
+        $endpointPath = '/' . ltrim((string)Minz_Request::param('endpoint_path', ''), '/');
 
-            $this->setUserConfigurationValue('api_url', $apiUrl !== '' ? $apiUrl : self::DEFAULT_URL);
-            $this->setUserConfigurationValue('endpoint_path', $endpointPath !== '/' ? $endpointPath : self::DEFAULT_ENDPOINT);
-            $this->setUserConfigurationValue('api_token', trim((string)Minz_Request::param('api_token', '')));
-            $this->setUserConfigurationValue('default_tags', (string)Minz_Request::param('default_tags', ''));
-            $this->setUserConfigurationValue('include_category_tag', !empty(Minz_Request::param('include_category_tag', '')));
-            $this->setUserConfigurationValue('include_feed_tag', !empty(Minz_Request::param('include_feed_tag', '')));
-            $this->setUserConfigurationValue('include_entry_tags', !empty(Minz_Request::param('include_entry_tags', '')));
-            $this->setUserConfigurationValue('ignore_skip_rules', !empty(Minz_Request::param('ignore_skip_rules', '')));
-            $this->setUserConfigurationValue('auto_sync_all', !empty(Minz_Request::param('auto_sync_all', '')));
-            $this->setUserConfigurationValue('sync_starred', !empty(Minz_Request::param('sync_starred', '')));
-            $this->setUserConfigurationValue('sync_labeled', !empty(Minz_Request::param('sync_labeled', '')));
-            $this->setUserConfigurationValue('verify_ssl', !empty(Minz_Request::param('verify_ssl', '')));
-            $this->setUserConfigurationValue('clean_tracking', !empty(Minz_Request::param('clean_tracking', '')));
-            $this->setUserConfigurationValue('extra_tracking_params', trim((string)Minz_Request::param('extra_tracking_params', '')));
-            $this->setUserConfigurationValue('flaresolverr_enabled', !empty(Minz_Request::param('flaresolverr_enabled', '')));
-            $flareUrl = rtrim(trim((string)Minz_Request::param('flaresolverr_url', '')), '/');
-            $this->setUserConfigurationValue('flaresolverr_url', $flareUrl !== '' ? $flareUrl : self::DEFAULT_FLARE_URL);
-            $this->setUserConfigurationValue('flaresolverr_timeout', max(10, min(300, (int)Minz_Request::param('flaresolverr_timeout', '60'))));
-            $this->setUserConfigurationValue('flush_seconds', max(10, min(600, (int)Minz_Request::param('flush_seconds', '40'))));
+        $this->setUserConfigurationValue('api_url', $apiUrl !== '' ? $apiUrl : self::DEFAULT_URL);
+        $this->setUserConfigurationValue('endpoint_path', $endpointPath !== '/' ? $endpointPath : self::DEFAULT_ENDPOINT);
+        $this->setUserConfigurationValue('api_token', trim((string)Minz_Request::param('api_token', '')));
+        $this->setUserConfigurationValue('default_tags', (string)Minz_Request::param('default_tags', ''));
+        $this->setUserConfigurationValue('include_category_tag', !empty(Minz_Request::param('include_category_tag', '')));
+        $this->setUserConfigurationValue('include_feed_tag', !empty(Minz_Request::param('include_feed_tag', '')));
+        $this->setUserConfigurationValue('include_entry_tags', !empty(Minz_Request::param('include_entry_tags', '')));
+        $this->setUserConfigurationValue('ignore_skip_rules', !empty(Minz_Request::param('ignore_skip_rules', '')));
+        $this->setUserConfigurationValue('auto_sync_all', !empty(Minz_Request::param('auto_sync_all', '')));
+        $this->setUserConfigurationValue('sync_starred', !empty(Minz_Request::param('sync_starred', '')));
+        $this->setUserConfigurationValue('sync_labeled', !empty(Minz_Request::param('sync_labeled', '')));
+        $this->setUserConfigurationValue('verify_ssl', !empty(Minz_Request::param('verify_ssl', '')));
+        $this->setUserConfigurationValue('clean_tracking', !empty(Minz_Request::param('clean_tracking', '')));
+        $this->setUserConfigurationValue('extra_tracking_params', trim((string)Minz_Request::param('extra_tracking_params', '')));
+        $this->setUserConfigurationValue('flaresolverr_enabled', !empty(Minz_Request::param('flaresolverr_enabled', '')));
+
+        $flareUrl = rtrim(trim((string)Minz_Request::param('flaresolverr_url', '')), '/');
+        $this->setUserConfigurationValue('flaresolverr_url', $flareUrl !== '' ? $flareUrl : self::DEFAULT_FLARE_URL);
+        $this->setUserConfigurationValue('flaresolverr_timeout', max(10, min(300, (int)Minz_Request::param('flaresolverr_timeout', '60'))));
+        $this->setUserConfigurationValue('flush_seconds', max(10, min(600, (int)Minz_Request::param('flush_seconds', '40'))));
     }
 
     public function getApiUrl(): string {
@@ -148,16 +153,17 @@ class HisterExtension extends Minz_Extension {
         return $val === null ? true : (bool)$val;
     }
 
-    /** Ajoute un lien « Envoyer à Hister » à la fin du contenu de l'article. */
+    /** Ajoute un lien "Envoyer à Hister" à la fin du contenu de l'article. */
     public function addSendLink(FreshRSS_Entry $entry): FreshRSS_Entry {
         $sendUrl = _url('hister', 'send', 'id', $entry->id());
         $title = htmlspecialchars(_t('ext.hister.send_button_title'), ENT_QUOTES, 'UTF-8');
 
         $entry->_content(
             $entry->content()
-            . '<p class="hister-action"><a class="hister-send-btn" href="' . $sendUrl . '" title="' . $title . '">'
-            . '↗ ' . $title . '</a></p>'
+            . '<p class="hister-action"><a class="hister-send-btn" href="' . $sendUrl . '" data-id="' . htmlspecialchars((string)$entry->id(), ENT_QUOTES, 'UTF-8') . '" title="' . $title . '">'
+            . '⚡ ' . $title . '</a></p>'
         );
+
         return $entry;
     }
 
@@ -169,7 +175,6 @@ class HisterExtension extends Minz_Extension {
     /** @return list<string> */
     private function buildTags(FreshRSS_Entry $entry, bool $withLabels = false): array {
         $tags = [];
-
         foreach (explode(',', $this->getDefaultTags()) as $tag) {
             $clean = trim($tag);
             if ($clean !== '') {
@@ -190,7 +195,6 @@ class HisterExtension extends Minz_Extension {
             }
         }
 
-        // Tags propres à l'article (catégories fournies par le flux RSS).
         if ($this->isIncludeEntryTags()) {
             foreach ($entry->tags() as $tag) {
                 $clean = trim(ltrim((string)$tag, '#'));
@@ -200,14 +204,13 @@ class HisterExtension extends Minz_Extension {
             }
         }
 
-        // Labels FreshRSS posés par l'utilisateur : seulement pour un article déjà en base.
         if ($withLabels || $this->isIncludeEntryTags()) {
             foreach ($this->getEntryLabels($entry) as $label) {
                 $tags[] = $label;
             }
         }
 
-        return array_values(array_unique($tags));
+        return array_values(array_unique(array_filter($tags, static fn($t) => $t !== '')));
     }
 
     /** @return list<string> */
@@ -239,7 +242,7 @@ class HisterExtension extends Minz_Extension {
                     }
                 }
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             Minz_Log::warning('Hister: lecture des labels impossible (' . $e->getMessage() . ')');
         }
 
@@ -251,26 +254,49 @@ class HisterExtension extends Minz_Extension {
         $this->syncMarkedEntries(50);
     }
 
-    /** @return array<string,string> identifiant d'article => signature des tags déjà envoyés */
-    private function getSentState(): array {
-        $state = $this->getUserConfigurationValue('sent_state');
-        return is_array($state) ? $state : [];
+    // ---------------------------------------------------------------------
+    // État de synchronisation isolé (évite d'engorger config.php)
+    // ---------------------------------------------------------------------
+
+    private function stateFilePath(): string {
+        $user = (string)(Minz_User::name() ?? '_');
+        $user = preg_replace('/[^A-Za-z0-9_.-]/', '_', $user) ?? '_';
+        return DATA_PATH . '/hister-state-' . $user . '.json';
     }
 
-    /**
-     * Envoie les articles en favoris et/ou labellisés (selon la config) qui n'ont pas encore été envoyés,
-     * ou dont les labels ont changé depuis le dernier envoi.
-     * @return array{sent:int,failed:int}
-     */
+    /** @return array<string,string> */
+    private function getSentState(): array {
+        $file = $this->stateFilePath();
+        if (is_file($file)) {
+            $data = json_decode((string)file_get_contents($file), true);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+        $legacy = $this->getUserConfigurationValue('sent_state');
+        return is_array($legacy) ? $legacy : [];
+    }
+
+    /** @param array<string,string> $state */
+    private function saveSentState(array $state): void {
+        if (count($state) > 3000) {
+            $state = array_slice($state, -3000, null, true);
+        }
+        file_put_contents($this->stateFilePath(), json_encode($state, JSON_UNESCAPED_SLASHES), LOCK_EX);
+    }
+
+    /** @return array{sent:int,failed:int} */
     public function syncMarkedEntries(int $limit = 50): array {
         $result = ['sent' => 0, 'failed' => 0];
         $types = [];
+
         if ($this->isSyncStarred()) {
             $types[] = 's';
         }
         if ($this->isSyncLabeled()) {
             $types[] = 'T';
         }
+
         if ($types === []) {
             return $result;
         }
@@ -285,7 +311,7 @@ class HisterExtension extends Minz_Extension {
                 $entries = method_exists('FreshRSS_Entry', 'fromTraversable')
                     ? FreshRSS_Entry::fromTraversable($rows)
                     : $rows;
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
                 Minz_Log::error('Hister: lecture des articles impossible (' . $e->getMessage() . ')');
                 continue;
             }
@@ -294,6 +320,7 @@ class HisterExtension extends Minz_Extension {
                 if (!$entry instanceof FreshRSS_Entry) {
                     continue;
                 }
+
                 $id = (string)$entry->id();
                 if (isset($seen[$id])) {
                     continue;
@@ -304,6 +331,7 @@ class HisterExtension extends Minz_Extension {
                 if (($state[$id] ?? '') === $signature) {
                     continue;
                 }
+
                 if ($result['sent'] + $result['failed'] >= $limit || self::$circuitOpen) {
                     break 2;
                 }
@@ -318,26 +346,14 @@ class HisterExtension extends Minz_Extension {
             }
         }
 
-        // On borne la taille de l'état mémorisé (les plus anciens sont oubliés ; Hister dédoublonne par URL).
-        if (count($state) > 3000) {
-            $state = array_slice($state, -3000, null, true);
-        }
-        $this->setUserConfigurationValue('sent_state', $state);
-
+        $this->saveSentState($state);
         return $result;
     }
 
-    /** Vrai si le dernier appel à sendToHister() a mis l'article en file d'attente. */
     public function wasQueued(): bool {
         return $this->lastQueued;
     }
 
-    /**
-     * Envoie un article à Hister. Si Hister est indisponible (hors ligne, réindexation, erreur 5xx, token refusé),
-     * l'article est conservé dans une file d'attente et renvoyé plus tard (si $queue est vrai).
-     * Avec FlareSolverr, la page est récupérée immédiatement seulement si $fetchNow est vrai (envoi manuel) ;
-     * sinon l'article est mis en file et la page est récupérée lors du prochain passage.
-     */
     public function sendToHister(FreshRSS_Entry $entry, bool $withLabels = false, bool $queue = true, bool $fetchNow = false): bool {
         $status = $this->submit($entry, $withLabels, $queue, $fetchNow);
         $this->lastQueued = ($status === 'queued');
@@ -374,6 +390,7 @@ class HisterExtension extends Minz_Extension {
         if ($status === 'retry' && $allowQueue) {
             return $this->enqueue($payload, false) ? 'queued' : 'failed';
         }
+
         return 'failed';
     }
 
@@ -383,6 +400,7 @@ class HisterExtension extends Minz_Extension {
         if ($url === '') {
             return null;
         }
+
         if ($this->isCleanTracking()) {
             $url = $this->cleanUrl($url);
         }
@@ -397,6 +415,7 @@ class HisterExtension extends Minz_Extension {
             'tags' => $tags,
             'published' => $entry->date(true),
         ];
+
         if ($feed !== null) {
             $metadata['feed'] = $feed->name();
         }
@@ -404,7 +423,6 @@ class HisterExtension extends Minz_Extension {
             $metadata['ignore_skip_rules'] = true;
         }
 
-        // L'API Hister n'a qu'un champ « label » (chaîne) : les tags y sont réunis, séparés par des virgules.
         return [
             'url' => $url,
             'title' => html_entity_decode($entry->title(), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
@@ -415,22 +433,23 @@ class HisterExtension extends Minz_Extension {
     }
 
     /**
-     * Envoie un document à Hister.
      * @param array<string,mixed> $payload
-     * @return 'ok'|'retry'|'drop'  retry = à renvoyer plus tard, drop = refusé définitivement (document invalide)
+     * @return 'ok'|'retry'|'drop'
      */
     private function postPayload(array $payload): string {
         $headers = [
-            'Content-Type: application/json',
+            'Content-Type: application/json; charset=UTF-8',
             'Accept: application/json',
-            'User-Agent: FreshRSS-Hister-Client/2.4.1',
+            'User-Agent: FreshRSS-Hister-Client/2.5.0',
         ];
+
         $token = $this->getApiToken();
         if ($token !== '') {
             $headers[] = 'Authorization: Bearer ' . $token;
         }
 
         $targetUrl = rtrim($this->getApiUrl(), '/') . '/' . ltrim($this->getEndpointPath(), '/');
+
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $targetUrl,
@@ -462,19 +481,23 @@ class HisterExtension extends Minz_Extension {
             return 'ok';
         }
 
-        // Indisponible (réindexation, surcharge), authentification à corriger : on garde et on réessaiera.
+        if ($httpCode === 409) {
+            Minz_Log::notice('Hister: article déjà enregistré ' . $url . ' (HTTP 409)');
+            return 'ok';
+        }
+
         if ($httpCode === 0 || $httpCode === 401 || $httpCode === 403 || $httpCode === 408 || $httpCode === 429 || $httpCode >= 500) {
             self::$circuitOpen = true;
             Minz_Log::warning('Hister: HTTP ' . $httpCode . ', envois suspendus, articles mis en file. ' . mb_substr((string)$response, 0, 200));
             return 'retry';
         }
 
-        Minz_Log::error('Hister: document refusé HTTP ' . $httpCode . ' pour ' . $url . ' — ' . mb_substr((string)$response, 0, 200));
+        Minz_Log::error('Hister: document refusé HTTP ' . $httpCode . ' pour ' . $url . ' : ' . mb_substr((string)$response, 0, 200));
         return 'drop';
     }
 
     // ---------------------------------------------------------------------
-    // File d'attente (JSON Lines, un fichier par utilisateur FreshRSS)
+    // File d'attente (JSON Lines) - Traitement par flux continu (Anti-OOM)
     // ---------------------------------------------------------------------
 
     private function queuePath(): string {
@@ -486,7 +509,6 @@ class HisterExtension extends Minz_Extension {
     /** @param array<string,mixed> $payload */
     private function enqueue(array $payload, bool $fetch = false): bool {
         $path = $this->queuePath();
-
         if (is_file($path) && (int)filesize($path) > self::MAX_QUEUE_BYTES) {
             Minz_Log::error('Hister: file d\'attente pleine (' . self::MAX_QUEUE_BYTES . ' octets), article non conservé : ' . ($payload['url'] ?? ''));
             return false;
@@ -497,10 +519,10 @@ class HisterExtension extends Minz_Extension {
             Minz_Log::error('Hister: écriture impossible dans la file d\'attente ' . $path);
             return false;
         }
+
         return true;
     }
 
-    /** Nombre d'articles en attente d'envoi (hors doublons d'URL non dédoublonnés). */
     public function queueSize(): int {
         $path = $this->queuePath();
         $count = 0;
@@ -519,21 +541,19 @@ class HisterExtension extends Minz_Extension {
     }
 
     /**
-     * Renvoie à Hister les articles mis en file d'attente (en récupérant d'abord la page via FlareSolverr
-     * si l'article est marqué « à récupérer »). S'arrête dès que Hister ou FlareSolverr est indisponible,
-     * ou quand le temps imparti est écoulé.
+     * Traite la file d'attente par flux mémoire continu pour prévenir tout plantage OOM.
      * @return array{sent:int,dropped:int,remaining:int}
      */
     public function flushQueue(int $limit = 100, int $maxSeconds = 40): array {
         $result = ['sent' => 0, 'dropped' => 0, 'remaining' => 0];
         $path = $this->queuePath();
         $proc = $path . '.processing';
+        $temp = $path . '.tmp';
 
         if (!is_file($path) && !is_file($proc)) {
             return $result;
         }
 
-        // Un seul vidage à la fois (actualisation en cron + page de configuration, par exemple).
         $lock = @fopen($path . '.lock', 'c');
         if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
             if (is_resource($lock)) {
@@ -544,60 +564,82 @@ class HisterExtension extends Minz_Extension {
         }
 
         try {
-            // Les ajouts récents sont déplacés atomiquement, puis fusionnés à la suite des éléments en cours.
             if (is_file($path)) {
                 $incoming = $path . '.in';
                 if (@rename($path, $incoming)) {
-                    $data = (string)file_get_contents($incoming);
-                    if (@file_put_contents($proc, $data, FILE_APPEND) !== false) {
-                        @unlink($incoming);
+                    $inFh = @fopen($incoming, 'rb');
+                    $procFh = @fopen($proc, 'ab');
+                    if ($inFh && $procFh) {
+                        stream_copy_to_stream($inFh, $procFh);
                     }
+                    if ($inFh) fclose($inFh);
+                    if ($procFh) fclose($procFh);
+                    @unlink($incoming);
                 }
             }
 
-            $items = [];
-            if (is_file($proc)) {
-                foreach (file($proc, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
-                    $item = json_decode($line, true);
-                    if (is_array($item) && isset($item['payload']['url'])) {
-                        $items[(string)$item['payload']['url']] = $item; // dédoublonnage par URL : le plus récent l'emporte
-                    }
-                }
+            if (!is_file($proc)) {
+                return $result;
+            }
+
+            $readFh = @fopen($proc, 'rb');
+            $writeFh = @fopen($temp, 'wb');
+            if (!$readFh || !$writeFh) {
+                if ($readFh) fclose($readFh);
+                if ($writeFh) fclose($writeFh);
+                return $result;
             }
 
             $deadline = time() + max(5, $maxSeconds);
-            $kept = [];
             $processed = 0;
-            foreach ($items as $item) {
+            $seenUrls = [];
+
+            while (($line = fgets($readFh)) !== false) {
+                $line = trim($line);
+                if ($line === '') continue;
+
+                $item = json_decode($line, true);
+                if (!is_array($item) || !isset($item['payload']['url'])) {
+                    continue;
+                }
+
+                $url = (string)$item['payload']['url'];
+                if (isset($seenUrls[$url])) {
+                    continue;
+                }
+                $seenUrls[$url] = true;
+
                 if ($processed >= $limit || self::$circuitOpen || time() >= $deadline) {
-                    $kept[] = $item;
+                    fputs($writeFh, json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+                    $result['remaining']++;
                     continue;
                 }
 
                 $payload = $item['payload'];
-
                 if (!empty($item['fetch']) && $this->isFlareEnabled()) {
                     if (self::$flareDown) {
-                        $kept[] = $item; // FlareSolverr hors ligne : on réessaiera plus tard
+                        fputs($writeFh, json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+                        $result['remaining']++;
                         continue;
                     }
+
                     $processed++;
-                    $page = $this->fetchHtml((string)$payload['url']);
-                    if ($page['status'] === 'down') {
-                        $kept[] = $item;
-                        continue;
-                    }
+                    $page = $this->fetchHtml($url);
                     if ($page['status'] === 'ok') {
                         $payload['html'] = $page['html'];
                         unset($payload['text']);
                         $item['fetch'] = false;
+                    } elseif ($page['status'] === 'down') {
+                        fputs($writeFh, json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+                        $result['remaining']++;
+                        continue;
                     } else {
                         $item['fetch_attempts'] = (int)($item['fetch_attempts'] ?? 0) + 1;
                         if ($item['fetch_attempts'] < 3) {
-                            $kept[] = $item;
+                            fputs($writeFh, json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+                            $result['remaining']++;
                             continue;
                         }
-                        // Page inaccessible même via FlareSolverr : on envoie au moins le texte du flux.
                         $item['fetch'] = false;
                     }
                 } else {
@@ -608,23 +650,23 @@ class HisterExtension extends Minz_Extension {
                 if ($status === 'ok') {
                     $result['sent']++;
                 } elseif ($status === 'retry') {
-                    $item['payload'] = $payload; // conserve le HTML déjà récupéré
-                    $kept[] = $item;
+                    $item['payload'] = $payload;
+                    fputs($writeFh, json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+                    $result['remaining']++;
                 } else {
                     $result['dropped']++;
                 }
             }
 
-            if ($kept === []) {
+            fclose($readFh);
+            fclose($writeFh);
+
+            if ($result['remaining'] === 0) {
                 @unlink($proc);
+                @unlink($temp);
             } else {
-                $out = '';
-                foreach ($kept as $item) {
-                    $out .= json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
-                }
-                file_put_contents($proc, $out, LOCK_EX);
+                @rename($temp, $proc);
             }
-            $result['remaining'] = count($kept);
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
@@ -637,10 +679,7 @@ class HisterExtension extends Minz_Extension {
     // FlareSolverr
     // ---------------------------------------------------------------------
 
-    /**
-     * Récupère le HTML d'une page via FlareSolverr (contournement des protections anti-bot).
-     * @return array{status:'ok'|'down'|'fail',html:?string}
-     */
+    /** @return array{status:'ok'|'down'|'fail',html:?string} */
     private function fetchHtml(string $url): array {
         if (self::$flareDown) {
             return ['status' => 'down', 'html' => null];
@@ -661,6 +700,7 @@ class HisterExtension extends Minz_Extension {
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => $timeout + 15,
         ]);
+
         $response = curl_exec($ch);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
@@ -674,13 +714,15 @@ class HisterExtension extends Minz_Extension {
 
         $data = json_decode((string)$response, true);
         $solution = is_array($data) ? ($data['solution'] ?? null) : null;
+
         if (!is_array($data) || ($data['status'] ?? '') !== 'ok' || !is_array($solution)) {
-            Minz_Log::warning('Hister: FlareSolverr n\'a pas pu charger ' . $url . ' — ' . mb_substr((string)($data['message'] ?? $httpCode), 0, 200));
+            Minz_Log::warning('Hister: FlareSolverr n\'a pas pu charger ' . $url . ' : ' . mb_substr((string)($data['message'] ?? $httpCode), 0, 200));
             return ['status' => 'fail', 'html' => null];
         }
 
         $pageStatus = (int)($solution['status'] ?? 0);
         $html = (string)($solution['response'] ?? '');
+
         if ($pageStatus < 200 || $pageStatus >= 300 || trim($html) === '' || strlen($html) > self::MAX_HTML_BYTES) {
             Minz_Log::warning('Hister: page inutilisable via FlareSolverr (' . $url . ', statut ' . $pageStatus . ', ' . strlen($html) . ' octets).');
             return ['status' => 'fail', 'html' => null];
@@ -697,6 +739,7 @@ class HisterExtension extends Minz_Extension {
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 8,
         ]);
+
         $response = curl_exec($ch);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
@@ -705,11 +748,53 @@ class HisterExtension extends Minz_Extension {
         if ($curlError !== '') {
             return 'FlareSolverr injoignable : ' . $curlError;
         }
+
         $data = json_decode((string)$response, true);
         if ($httpCode === 200 && is_array($data) && isset($data['msg'])) {
             return 'FlareSolverr répond : ' . $data['msg'] . (isset($data['version']) ? ' (v' . $data['version'] . ')' : '');
         }
+
         return 'Réponse inattendue de ' . $this->getFlareUrl() . ' (HTTP ' . $httpCode . ').';
+    }
+
+    public function testHisterInstance(): string {
+        $ch = curl_init();
+        $targetUrl = rtrim($this->getApiUrl(), '/') . '/';
+        $headers = ['Accept: application/json'];
+
+        $token = $this->getApiToken();
+        if ($token !== '') {
+            $headers[] = 'Authorization: Bearer ' . $token;
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $targetUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_SSL_VERIFYPEER => $this->isVerifySsl(),
+            CURLOPT_SSL_VERIFYHOST => $this->isVerifySsl() ? 2 : 0,
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError !== '') {
+            return 'Hister injoignable : ' . $curlError;
+        }
+
+        if ($httpCode >= 200 && $httpCode < 400) {
+            return 'Hister répond avec succès (HTTP ' . $httpCode . ').';
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return 'Hister est joignable mais refuse l\'authentification (HTTP ' . $httpCode . '). Vérifiez le token.';
+        }
+
+        return 'Hister a répondu avec le statut HTTP ' . $httpCode . ' : ' . mb_substr((string)$response, 0, 150);
     }
 
     // ---------------------------------------------------------------------
@@ -731,16 +816,17 @@ class HisterExtension extends Minz_Extension {
         if (in_array($key, self::TRACKING_PARAMS, true)) {
             return true;
         }
+
         foreach (self::TRACKING_PREFIXES as $prefix) {
             if (strncmp($key, $prefix, strlen($prefix)) === 0) {
                 return true;
             }
         }
+
         foreach (explode(',', strtolower($this->getExtraTrackingParams())) as $extra) {
             $extra = trim($extra);
-            if ($extra === '') {
-                continue;
-            }
+            if ($extra === '') continue;
+
             if (substr($extra, -1) === '*') {
                 $prefix = rtrim($extra, '*');
                 if ($prefix !== '' && strncmp($key, $prefix, strlen($prefix)) === 0) {
@@ -750,10 +836,10 @@ class HisterExtension extends Minz_Extension {
                 return true;
             }
         }
+
         return false;
     }
 
-    /** Supprime les paramètres et fragments de tracking, et déballe quelques redirections connues. */
     public function cleanUrl(string $url, int $depth = 0): string {
         $parts = parse_url($url);
         if ($parts === false || !isset($parts['scheme'], $parts['host']) || !in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
@@ -764,7 +850,6 @@ class HisterExtension extends Minz_Extension {
         $path = $parts['path'] ?? '';
         $query = $parts['query'] ?? '';
 
-        // Redirections de suivi (Google, Facebook) : on garde la destination.
         if ($depth < 2 && $query !== '') {
             $target = null;
             parse_str($query, $q);
@@ -781,9 +866,7 @@ class HisterExtension extends Minz_Extension {
         if ($query !== '') {
             $kept = [];
             foreach (explode('&', $query) as $pair) {
-                if ($pair === '') {
-                    continue;
-                }
+                if ($pair === '') continue;
                 $key = urldecode(explode('=', $pair, 2)[0]);
                 if (!$this->isTrackingParam($key)) {
                     $kept[] = $pair;
@@ -808,18 +891,11 @@ class HisterExtension extends Minz_Extension {
         if ($fragment !== '') {
             $clean .= '#' . $fragment;
         }
+
         return $clean;
     }
 
-    // ---------------------------------------------------------------------
-    // Mise en file de tous les articles existants
-    // ---------------------------------------------------------------------
-
-    /**
-     * Parcourt les articles déjà en base (du plus récent au plus ancien) et les met en file d'attente.
-     * La position est mémorisée : on peut relancer pour continuer.
-     * @return array{queued:int,done:bool}
-     */
+    /** @return array{queued:int,done:bool} */
     public function enqueueAllExisting(int $maxSeconds = 20): array {
         $cursor = (string)$this->getUserConfigurationValue('bulk_cursor');
         $deadline = time() + max(5, $maxSeconds);
@@ -835,7 +911,7 @@ class HisterExtension extends Minz_Extension {
                 $entries = method_exists('FreshRSS_Entry', 'fromTraversable')
                     ? FreshRSS_Entry::fromTraversable($rows)
                     : $rows;
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
                 Minz_Log::error('Hister: lecture des articles impossible (' . $e->getMessage() . ')');
                 break;
             }
@@ -846,6 +922,7 @@ class HisterExtension extends Minz_Extension {
                 if (!$entry instanceof FreshRSS_Entry) {
                     continue;
                 }
+
                 $id = (string)$entry->id();
                 if (isset($seen[$id])) {
                     continue;
