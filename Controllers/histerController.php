@@ -28,7 +28,7 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
         $ext = Minz_ExtensionManager::findExtension('Hister');
         $success = false;
 
-        if ($ext instanceof FreshExtension_Hister) {
+        if ($ext instanceof HisterExtension) {
             $success = $ext->sendToHister($entry);
         }
 
