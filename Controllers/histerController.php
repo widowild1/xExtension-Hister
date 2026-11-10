@@ -10,7 +10,7 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
-        $entryId = Minz_Request::paramString('id');
+        $entryId = Minz_Request::param('id');
         $entryDAO = FreshRSS_Factory::createEntryDao();
         $entry = $entryDAO->searchById($entryId);
 
@@ -25,11 +25,10 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
-        /** @var HisterExtension|null $ext */
         $ext = Minz_ExtensionManager::findExtension('Hister');
         $success = false;
 
-        if ($ext instanceof HisterExtension) {
+        if ($ext instanceof FreshExtension_Hister) {
             $success = $ext->sendToHister($entry);
         }
 
