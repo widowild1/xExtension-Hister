@@ -54,7 +54,7 @@ jobs:
           echo "✅ Tous les fichiers PHP et templates PHTML sont syntaxiquement valides."
 
   push-to-github:
-    name: 🚀 Déploiement vers GitHub
+    name: 🚀 Déploiement vers GitHub (Sans workflow)
     needs: security-and-lint
     runs-on: docker
     steps:
@@ -68,17 +68,25 @@ jobs:
           git config user.name "widowild1"
           git config user.email "widowild1@users.noreply.github.com"
 
-      - name: Push miroir vers GitHub (sans token dans l'URL)
+      - name: Nettoyage du workflow pour la version publique
+        run: |
+          git checkout -B release-public
+          if [ -d ".forgejo" ]; then
+            git rm -rf .forgejo
+            git commit -m "chore: export release without internal CI workflow"
+          fi
+
+      - name: Push miroir vers GitHub
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           if [ -z "$GH_PAT" ]; then
-            echo "❌ ÉCHEC : Le secret GH_PAT est introuvable dans les réglages Forgejo."
+            echo "❌ ÉCHEC : Le secret GH_PAT est introuvable."
             exit 1
           fi
 
           git remote add github "https://github.com/widowild1/xExtension-Hister.git"
           BASIC_AUTH=$(printf "widowild1:%s" "$GH_PAT" | base64 -w 0)
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $BASIC_AUTH"
-          git push github main --force --tags
-          echo "✅ Synchronisation réussie vers GitHub (widowild1/xExtension-Hister) !"
+          git push github release-public:main --force
+          echo "✅ Dépôt GitHub synchronisé proprement sans aucun fichier de workflow !"
