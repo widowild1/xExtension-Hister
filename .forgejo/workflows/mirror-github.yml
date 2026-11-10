@@ -11,8 +11,6 @@ jobs:
   security-and-lint:
     name: 🛡️ Contrôle de Sécurité & Linting
     runs-on: docker
-    container:
-      image: php:8.3-cli
     steps:
       - name: Récupération du dépôt
         uses: actions/checkout@v4
@@ -49,6 +47,8 @@ jobs:
 
       - name: 4. Validation stricte de la syntaxe PHP
         run: |
+          echo "Installation de PHP CLI dans l'environnement du runner..."
+          apt-get update -qq && apt-get install -y -qq php-cli
           echo "Validation de la syntaxe des scripts..."
           find . -type f \( -name "*.php" -o -name "*.phtml" \) -not -path "*/.*" -exec php -l {} +
           echo "✅ Tous les fichiers PHP et templates PHTML sont syntaxiquement valides."
@@ -68,12 +68,12 @@ jobs:
           git config user.name "widowild1"
           git config user.email "widowild1@users.noreply.github.com"
 
-      - name: Nettoyage du workflow pour la version publique
+      - name: Retrait du dossier workflow pour la version publique
         run: |
           git checkout -B release-public
           if [ -d ".forgejo" ]; then
             git rm -rf .forgejo
-            git commit -m "chore: export release without internal CI workflow"
+            git commit -m "chore: release public version without internal CI workflow"
           fi
 
       - name: Push miroir vers GitHub
@@ -89,4 +89,4 @@ jobs:
           BASIC_AUTH=$(printf "widowild1:%s" "$GH_PAT" | base64 -w 0)
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $BASIC_AUTH"
           git push github release-public:main --force
-          echo "✅ Dépôt GitHub synchronisé proprement sans aucun fichier de workflow !"
+          echo "✅ Dépôt GitHub synchronisé sans aucun fichier de workflow !"
