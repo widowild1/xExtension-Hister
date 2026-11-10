@@ -1,0 +1,19 @@
+li.item.manage.hister-action a.hister-send-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s ease-in-out;
+}
+
+li.item.manage.hister-action a.hister-send-btn:hover {
+    color: #ff6b35;
+}
+
+li.item.manage.hister-action a.hister-send-btn.success {
+    color: #28a745;
+}
+
+li.item.manage.hister-action a.hister-send-btn.failed {
+    color: #dc3545;
+}
