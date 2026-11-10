@@ -42,7 +42,6 @@ final class HisterExtension extends Minz_Extension {
         $this->registerTranslates();
 
         if (Minz_Request::isPost()) {
-            FreshRSS_Form_Token::validate();
             $this->saveSettingsFromRequest();
         }
     }

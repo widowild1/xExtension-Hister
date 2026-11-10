@@ -71,14 +71,24 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         }
     }
 
-    /** Exécute une action d'administration sécurisée par jeton CSRF. */
+    /** Exécute une action d'administration sécurisée. */
     private function runConfigurationTask(callable $task): void {
-        if (!FreshRSS_Auth::hasAccess() || !Minz_Request::isPost()) {
+        if (!FreshRSS_Auth::hasAccess()) {
             Minz_Error::error(403);
             return;
         }
 
-        FreshRSS_Form_Token::validate();
+        // Si l'URL est visitée en GET, on redirige gentiment vers la page de configuration
+        if (!Minz_Request::isPost()) {
+            $this->backToConfiguration('Action accessible uniquement via le formulaire.', false);
+            return;
+        }
+
+        // Validation CSRF native FreshRSS
+        if (!FreshRSS_Auth::isCsrfOk()) {
+            Minz_Error::error(403);
+            return;
+        }
 
         $ext = $this->histerExtension();
         if ($ext === null) {
