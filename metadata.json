@@ -3,6 +3,5 @@
   "author": "widowild1",
   "description": "Intégration rapide entre FreshRSS et Hister via l'API REST native.",
   "version": "2.0.0",
-  "entrypoint": "HisterExtension",
-  "type": "user"
+  "type": "system"
 }
