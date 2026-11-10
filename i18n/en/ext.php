@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'hister' => [
         'api_url' => 'Hister instance URL',
@@ -34,6 +36,7 @@ return [
         'flaresolverr_timeout' => 'Maximum time per page (seconds)',
         'flush_seconds' => 'Maximum queue processing time per refresh (seconds)',
         'flush_seconds_help' => 'FlareSolverr takes several seconds per page: more frequent refreshes (cron) drain the queue faster.',
+        'test_hister' => 'Test Hister',
         'test_flare' => 'Test FlareSolverr',
         'bulk_enqueue' => 'Queue all existing entries',
     ],
