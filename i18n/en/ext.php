@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'hister' => [
+        'api_url' => 'Hister instance URL',
+        'api_url_help' => 'Example: http://127.0.0.1:4433. Under Docker, use the host address, not localhost.',
+        'endpoint_path' => 'API Endpoint Path',
+        'endpoint_path_help' => 'Default: /api/add (see your instance documentation at /api-docs).',
+        'api_token' => 'API Token (Bearer Token)',
+        'default_tags' => 'Default tags (comma-separated)',
+        'default_tags_help' => 'Joined into Hister\'s single "label" field, comma-separated.',
+        'include_category_tag' => 'Append FreshRSS category as a tag',
+        'include_feed_tag' => 'Append feed name as a tag',
+        'auto_sync_all' => 'Automatically sync every incoming entry',
+        'verify_ssl' => 'Verify SSL certificate (disable only for local self-signed setups)',
+        'send_button_title' => 'Send this article to Hister',
+        'success_notification' => 'Article successfully sent to Hister.',
+        'error_notification' => 'Failed to send article to Hister (check FreshRSS logs).',
+        'api_token_help' => 'Optional: only needed if your instance requires a token (app.access_token or multi-user mode).',
+        'include_entry_tags' => 'Also append the entry\'s own tags (feed categories and FreshRSS labels when available)',
+        'ignore_skip_rules' => 'Bypass Hister skip/allow rules for these submissions',
+        'sync_starred' => 'Sync starred (favorite) entries',
+        'sync_labeled' => 'Sync labeled entries (FreshRSS labels become Hister tags)',
+        'sync_help' => 'Runs after each feed refresh. An entry is resent when its labels change.',
+        'sync_now' => 'Save and sync now',
+    ],
+];
