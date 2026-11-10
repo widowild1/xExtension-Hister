@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-class FreshExtension_hister_Controller extends Minz_ActionController {
+final class FreshExtension_hister_Controller extends Minz_ActionController {
 
     public function sendAction(): void {
         if (!FreshRSS_Auth::hasAccess()) {
@@ -17,7 +17,7 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
         if ($entry === null) {
             if (Minz_Request::isAjax()) {
                 $this->view->_layout(false);
-                header('Content-Type: application/json', true, 404);
+                header('Content-Type: application/json; charset=UTF-8', true, 404);
                 echo json_encode(['status' => 'error', 'message' => 'Article introuvable']);
                 exit;
             }
@@ -25,6 +25,7 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
+        /** @var HisterExtension|null $ext */
         $ext = Minz_ExtensionManager::findExtension('Hister');
         $success = false;
 
@@ -34,10 +35,15 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
 
         if (Minz_Request::isAjax()) {
             $this->view->_layout(false);
-            header('Content-Type: application/json');
+            header('Content-Type: application/json; charset=UTF-8');
             echo json_encode([
                 'status' => $success ? 'ok' : (($ext instanceof HisterExtension && $ext->wasQueued()) ? 'queued' : 'error'),
                 'entry_id' => $entryId,
+                'message' => $success
+                    ? _t('ext.hister.success_notification')
+                    : (($ext instanceof HisterExtension && $ext->wasQueued())
+                        ? _t('ext.hister.queued_notification')
+                        : _t('ext.hister.error_notification')),
             ]);
             exit;
         }
@@ -65,12 +71,15 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
         }
     }
 
-    /** Exécute une action de la page de configuration : enregistre les réglages, lance $task, affiche le résultat. */
+    /** Exécute une action d'administration sécurisée par jeton CSRF. */
     private function runConfigurationTask(callable $task): void {
         if (!FreshRSS_Auth::hasAccess() || !Minz_Request::isPost()) {
             Minz_Error::error(403);
             return;
         }
+
+        FreshRSS_Form_Token::validate();
+
         $ext = $this->histerExtension();
         if ($ext === null) {
             Minz_Error::error(404);
@@ -80,12 +89,20 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
         try {
             $ext->saveSettingsFromRequest();
             [$ok, $message] = $task($ext);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             Minz_Log::error('Hister: ' . $e->getMessage() . ' (' . $e->getFile() . ':' . $e->getLine() . ')');
             $ok = false;
             $message = 'Erreur : ' . $e->getMessage();
         }
+
         $this->backToConfiguration($message, $ok);
+    }
+
+    public function testHisterAction(): void {
+        $this->runConfigurationTask(static function (HisterExtension $ext): array {
+            $message = $ext->testHisterInstance();
+            return [strpos($message, 'succès') !== false, $message];
+        });
     }
 
     public function flareAction(): void {
