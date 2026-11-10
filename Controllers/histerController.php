@@ -29,14 +29,14 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
         $success = false;
 
         if ($ext instanceof HisterExtension) {
-            $success = $ext->sendToHister($entry);
+            $success = $ext->sendToHister($entry, false, true, true);
         }
 
         if (Minz_Request::isAjax()) {
             $this->view->_layout(false);
             header('Content-Type: application/json');
             echo json_encode([
-                'status' => $success ? 'ok' : 'error',
+                'status' => $success ? 'ok' : (($ext instanceof HisterExtension && $ext->wasQueued()) ? 'queued' : 'error'),
                 'entry_id' => $entryId,
             ]);
             exit;
@@ -44,6 +44,8 @@ class FreshExtension_hister_Controller extends Minz_ActionController {
 
         if ($success) {
             Minz_Request::good(_t('ext.hister.success_notification'), ['c' => 'index', 'a' => 'index']);
+        } elseif ($ext instanceof HisterExtension && $ext->wasQueued()) {
+            Minz_Request::good(_t('ext.hister.queued_notification'), ['c' => 'index', 'a' => 'index']);
         } else {
             Minz_Request::bad(_t('ext.hister.error_notification'), ['c' => 'index', 'a' => 'index']);
         }
