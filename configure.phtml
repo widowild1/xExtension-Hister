@@ -1,0 +1,91 @@
+<?php
+declare(strict_types=1);
+/** @var HisterExtension $this */
+?>
+<form action="<?php echo _url('extension', 'configure', 'e', urlencode($this->getName())); ?>" method="post">
+    <?php echo FreshRSS_Form_Token::html(); ?>
+
+    <div class="form-group">
+        <label class="group-name" for="api_url"><?php echo _t('ext.hister.api_url'); ?></label>
+        <div class="group-controls">
+            <input type="url" id="api_url" name="api_url" class="input-text"
+                   value="<?php echo htmlspecialchars((string)$this->getUserConfigurationValue('api_url') ?: 'https://demo.hister.org', ENT_QUOTES, 'UTF-8'); ?>"
+                   placeholder="https://demo.hister.org" required />
+            <p class="help"><?php echo _t('ext.hister.api_url_help'); ?></p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="endpoint_path"><?php echo _t('ext.hister.endpoint_path'); ?></label>
+        <div class="group-controls">
+            <input type="text" id="endpoint_path" name="endpoint_path" class="input-text"
+                   value="<?php echo htmlspecialchars((string)$this->getUserConfigurationValue('endpoint_path') ?: '/api/v1/bookmarks', ENT_QUOTES, 'UTF-8'); ?>"
+                   placeholder="/api/v1/bookmarks" required />
+            <p class="help"><?php echo _t('ext.hister.endpoint_path_help'); ?></p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="api_token"><?php echo _t('ext.hister.api_token'); ?></label>
+        <div class="group-controls">
+            <input type="password" id="api_token" name="api_token" class="input-text"
+                   value="<?php echo htmlspecialchars((string)$this->getUserConfigurationValue('api_token'), ENT_QUOTES, 'UTF-8'); ?>"
+                   placeholder="Bearer eyJhbGciOi..." required autocomplete="off" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="group-name" for="default_tags"><?php echo _t('ext.hister.default_tags'); ?></label>
+        <div class="group-controls">
+            <input type="text" id="default_tags" name="default_tags" class="input-text"
+                   value="<?php echo htmlspecialchars((string)$this->getUserConfigurationValue('default_tags'), ENT_QUOTES, 'UTF-8'); ?>"
+                   placeholder="freshrss, lecture" />
+            <p class="help"><?php echo _t('ext.hister.default_tags_help'); ?></p>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="include_category_tag">
+                <input type="checkbox" id="include_category_tag" name="include_category_tag" value="1"
+                    <?php echo (bool)$this->getUserConfigurationValue('include_category_tag') ? 'checked="checked"' : ''; ?> />
+                <?php echo _t('ext.hister.include_category_tag'); ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="include_feed_tag">
+                <input type="checkbox" id="include_feed_tag" name="include_feed_tag" value="1"
+                    <?php echo (bool)$this->getUserConfigurationValue('include_feed_tag') ? 'checked="checked"' : ''; ?> />
+                <?php echo _t('ext.hister.include_feed_tag'); ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="auto_sync_all">
+                <input type="checkbox" id="auto_sync_all" name="auto_sync_all" value="1"
+                    <?php echo (bool)$this->getUserConfigurationValue('auto_sync_all') ? 'checked="checked"' : ''; ?> />
+                <?php echo _t('ext.hister.auto_sync_all'); ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="verify_ssl">
+                <input type="checkbox" id="verify_ssl" name="verify_ssl" value="1"
+                    <?php echo (bool)$this->getUserConfigurationValue('verify_ssl') ? 'checked="checked"' : ''; ?> />
+                <?php echo _t('ext.hister.verify_ssl'); ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-important"><?php echo _t('gen.action.submit'); ?></button>
+        <button type="reset" class="btn"><?php echo _t('gen.action.cancel'); ?></button>
+    </div>
+</form>
