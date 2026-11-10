@@ -323,7 +323,7 @@ class HisterExtension extends Minz_Extension {
         $headers = [
             'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: FreshRSS-Hister-Client/2.2.0',
+            'User-Agent: FreshRSS-Hister-Client/2.2.1',
         ];
         $token = $this->getApiToken();
         if ($token !== '') {
