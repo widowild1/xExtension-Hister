@@ -17,6 +17,15 @@ final class HisterExtension extends Minz_Extension {
 
     #[\Override]
     public function init(): void {
+        // Protection contre le dépassement PostgreSQL bigint (erreur 22003) causé par les clients Google Reader API
+        foreach (['ot', 'nt'] as $param) {
+            if (isset($_GET[$param]) && is_numeric($_GET[$param]) && strlen((string)$_GET[$param]) > 10) {
+                $_GET[$param] = substr((string)$_GET[$param], 0, 10);
+                if (isset($_REQUEST[$param])) {
+                    $_REQUEST[$param] = $_GET[$param];
+                }
+            }
+        }
         $this->registerTranslates();
         $this->registerController('hister');
 
