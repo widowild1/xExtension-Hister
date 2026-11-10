@@ -14,8 +14,6 @@ class HisterExtension extends Minz_Extension {
     /** Une fois Hister injoignable pendant une requête, on n'insiste plus (évite de bloquer l'actualisation des flux). */
     private static bool $circuitOpen = false;
 
-    /** Résultat de la dernière synchronisation manuelle (affiché dans la page de configuration). */
-    public string $syncResult = '';
 
     private bool $lastQueued = false;
 
@@ -41,6 +39,12 @@ class HisterExtension extends Minz_Extension {
         $this->registerTranslates();
 
         if (Minz_Request::isPost()) {
+            $this->saveSettingsFromRequest();
+        }
+    }
+
+    /** Enregistre les réglages du formulaire (utilisé par « Valider » et par les boutons d'action). */
+    public function saveSettingsFromRequest(): void {
             $apiUrl = rtrim((string)Minz_Request::param('api_url', ''), '/');
             $endpointPath = '/' . ltrim((string)Minz_Request::param('endpoint_path', ''), '/');
 
@@ -63,20 +67,6 @@ class HisterExtension extends Minz_Extension {
             $this->setUserConfigurationValue('flaresolverr_url', $flareUrl !== '' ? $flareUrl : self::DEFAULT_FLARE_URL);
             $this->setUserConfigurationValue('flaresolverr_timeout', max(10, min(300, (int)Minz_Request::param('flaresolverr_timeout', '60'))));
             $this->setUserConfigurationValue('flush_seconds', max(10, min(600, (int)Minz_Request::param('flush_seconds', '40'))));
-
-            if (Minz_Request::param('test_flare', '') !== '') {
-                $this->syncResult = $this->testFlareSolverr();
-            } elseif (Minz_Request::param('bulk_enqueue', '') !== '') {
-                $b = $this->enqueueAllExisting(20);
-                $this->syncResult = $b['queued'] . ' article(s) mis en file d\'attente, '
-                    . ($b['done'] ? 'terminé.' : 'cliquez à nouveau pour continuer.');
-            } elseif (Minz_Request::param('sync_now', '') !== '') {
-                $q = $this->flushQueue(1000, 20);
-                $r = $this->syncMarkedEntries(200);
-                $this->syncResult = ($q['sent'] + $r['sent']) . ' envoyé(s), ' . $r['failed'] . ' échec(s), '
-                    . $q['remaining'] . ' en file d\'attente.';
-            }
-        }
     }
 
     public function getApiUrl(): string {
@@ -433,7 +423,7 @@ class HisterExtension extends Minz_Extension {
         $headers = [
             'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: FreshRSS-Hister-Client/2.4.0',
+            'User-Agent: FreshRSS-Hister-Client/2.4.1',
         ];
         $token = $this->getApiToken();
         if ($token !== '') {
