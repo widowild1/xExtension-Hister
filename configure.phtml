@@ -11,7 +11,7 @@ $this->registerTranslates();
         <div class="group-controls">
             <input type="url" id="api_url" name="api_url" class="input-text"
                    value="<?= htmlspecialchars($this->getApiUrl(), ENT_QUOTES, 'UTF-8') ?>"
-                   placeholder="https://demo.hister.org" required />
+                   placeholder="http://127.0.0.1:4433" required />
             <p class="help"><?= _t('ext.hister.api_url_help') ?></p>
         </div>
     </div>
@@ -31,7 +31,8 @@ $this->registerTranslates();
         <div class="group-controls">
             <input type="password" id="api_token" name="api_token" class="input-text"
                    value="<?= htmlspecialchars($this->getApiToken(), ENT_QUOTES, 'UTF-8') ?>"
-                   placeholder="eyJhbGciOi..." required autocomplete="off" />
+                   placeholder="" autocomplete="off" />
+            <p class="help"><?= _t('ext.hister.api_token_help') ?></p>
         </div>
     </div>
 
@@ -67,11 +68,52 @@ $this->registerTranslates();
 
     <div class="form-group">
         <div class="group-controls">
+            <label class="checkbox" for="include_entry_tags">
+                <input type="checkbox" id="include_entry_tags" name="include_entry_tags" value="1"
+                    <?= $this->isIncludeEntryTags() ? 'checked="checked"' : '' ?> />
+                <?= _t('ext.hister.include_entry_tags') ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="ignore_skip_rules">
+                <input type="checkbox" id="ignore_skip_rules" name="ignore_skip_rules" value="1"
+                    <?= $this->isIgnoreSkipRules() ? 'checked="checked"' : '' ?> />
+                <?= _t('ext.hister.ignore_skip_rules') ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
             <label class="checkbox" for="auto_sync_all">
                 <input type="checkbox" id="auto_sync_all" name="auto_sync_all" value="1"
                     <?= $this->isAutoSyncAll() ? 'checked="checked"' : '' ?> />
                 <?= _t('ext.hister.auto_sync_all') ?>
             </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="sync_starred">
+                <input type="checkbox" id="sync_starred" name="sync_starred" value="1"
+                    <?= $this->isSyncStarred() ? 'checked="checked"' : '' ?> />
+                <?= _t('ext.hister.sync_starred') ?>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="group-controls">
+            <label class="checkbox" for="sync_labeled">
+                <input type="checkbox" id="sync_labeled" name="sync_labeled" value="1"
+                    <?= $this->isSyncLabeled() ? 'checked="checked"' : '' ?> />
+                <?= _t('ext.hister.sync_labeled') ?>
+            </label>
+            <p class="help"><?= _t('ext.hister.sync_help') ?></p>
         </div>
     </div>
 
@@ -87,6 +129,10 @@ $this->registerTranslates();
 
     <div class="form-actions">
         <button type="submit" class="btn btn-important"><?= _t('gen.action.submit') ?></button>
+        <button type="submit" name="sync_now" value="1" class="btn"><?= _t('ext.hister.sync_now') ?></button>
         <button type="reset" class="btn"><?= _t('gen.action.cancel') ?></button>
+        <?php if ($this->syncResult !== '') { ?>
+            <p class="help"><?= htmlspecialchars($this->syncResult, ENT_QUOTES, 'UTF-8') ?></p>
+        <?php } ?>
     </div>
 </form>
