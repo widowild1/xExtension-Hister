@@ -10,7 +10,6 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
-        // Exige obligatoirement POST et un jeton CSRF valide
         if (!Minz_Request::isPost() || !FreshRSS_Auth::isCsrfOk()) {
             Minz_Error::error(403);
             return;
@@ -135,5 +134,79 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             return [true, ($q['sent'] + $r['sent']) . ' envoyé(s), ' . $r['failed'] . ' échec(s), '
                 . $q['remaining'] . ' en file d\'attente.'];
         });
+    }
+
+    public function drainAction(): void {
+        if (!FreshRSS_Auth::hasAccess() || !Minz_Request::isPost() || !FreshRSS_Auth::isCsrfOk()) {
+            Minz_Error::error(403);
+            return;
+        }
+
+        $running = !empty(trim((string)@shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"')));
+        if ($running) {
+            $this->backToConfiguration('Le dépilage est déjà en cours d\'exécution.', true);
+            return;
+        }
+
+        $ext = $this->histerExtension();
+        $baseApiUrl = $ext instanceof HisterExtension ? rtrim($ext->getApiUrl(), '/') : '';
+        $endpoint = $ext instanceof HisterExtension ? ('/' . ltrim($ext->getEndpointPath(), '/')) : '/api/add';
+        $fullApiUrl = $baseApiUrl !== '' ? ($baseApiUrl . $endpoint) : '';
+        $apiToken = $ext instanceof HisterExtension ? $ext->getApiToken() : '';
+        $user = FreshRSS_Context::$user_conf->user ?? 'widowild';
+
+        @unlink(DATA_PATH . '/hister-queue-' . $user . '.jsonl.lock');
+
+        $envVars = sprintf(
+            'HISTER_URL=%s HISTER_TOKEN=%s HISTER_USER=%s',
+            escapeshellarg($fullApiUrl),
+            escapeshellarg($apiToken),
+            escapeshellarg($user)
+        );
+
+        $cmd = "{$envVars} /usr/bin/nohup /usr/bin/python3 -u /usr/local/bin/drain_hister_queue.py </dev/null > " . DATA_PATH . "/hister-drain.log 2>&1 &";
+        exec($cmd);
+        usleep(400000);
+
+        $this->backToConfiguration('🚀 Dépilage lancé en arrière-plan avec succès !', true);
+    }
+
+    public function drainStopAction(): void {
+        if (!FreshRSS_Auth::hasAccess() || !Minz_Request::isPost() || !FreshRSS_Auth::isCsrfOk()) {
+            Minz_Error::error(403);
+            return;
+        }
+
+        exec('/usr/bin/pkill -f "drain_hister_queue\.py"');
+        $user = FreshRSS_Context::$user_conf->user ?? 'widowild';
+        @unlink(DATA_PATH . '/hister-queue-' . $user . '.jsonl.lock');
+        $this->backToConfiguration('Arrêt du dépilage demandé.', true);
+    }
+
+    public function drainStatusAction(): void {
+        if (!FreshRSS_Auth::hasAccess()) {
+            Minz_Error::error(403);
+            return;
+        }
+
+        $this->view->_layout(false);
+        header('Content-Type: application/json; charset=UTF-8');
+
+        $running = !empty(trim((string)@shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"')));
+        $statusFile = DATA_PATH . '/hister-drain-status.json';
+        $data = ['running' => $running];
+
+        if (is_file($statusFile)) {
+            $fileData = json_decode((string)file_get_contents($statusFile), true);
+            if (is_array($fileData)) {
+                $data = array_merge($fileData, ['running' => $running]);
+            }
+        }
+
+        $ext = $this->histerExtension();
+        $data['queue_size'] = $ext instanceof HisterExtension ? $ext->queueSize() : 0;
+
+        echo json_encode($data);
+        exit;
     }
 }
