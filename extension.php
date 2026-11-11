@@ -321,10 +321,8 @@ final class HisterExtension extends Minz_Extension {
 
         foreach ($types as $type) {
             try {
-                $rows = $entryDAO->listWhere($type, 0, FreshRSS_Entry::STATE_ALL, 'DESC', 200);
-                $entries = method_exists('FreshRSS_Entry', 'fromTraversable')
-                    ? FreshRSS_Entry::fromTraversable($rows)
-                    : $rows;
+                $rows = $entryDAO->listWhere($type, 0, FreshRSS_Entry::STATE_ALL, order: 'DESC', limit: 200);
+                $entries = $rows;
             } catch (\Throwable $e) {
                 Minz_Log::error('Hister: lecture des articles impossible (' . $e->getMessage() . ')');
                 continue;
@@ -454,6 +452,7 @@ final class HisterExtension extends Minz_Extension {
         $headers = [
             'Content-Type: application/json; charset=UTF-8',
             'Accept: application/json',
+            'Origin: same-origin',
             'User-Agent: FreshRSS-Hister-Client/2.5.1',
         ];
 
@@ -471,7 +470,7 @@ final class HisterExtension extends Minz_Extension {
             CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 2,
-            CURLOPT_TIMEOUT => isset($payload['html']) ? 20 : 5,
+            CURLOPT_TIMEOUT => isset($payload['html']) ? 30 : 25,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_SSL_VERIFYPEER => $this->isVerifySsl(),
             CURLOPT_SSL_VERIFYHOST => $this->isVerifySsl() ? 2 : 0,
@@ -957,10 +956,8 @@ final class HisterExtension extends Minz_Extension {
 
         while (time() < $deadline) {
             try {
-                $rows = $entryDAO->listWhere('a', 0, FreshRSS_Entry::STATE_ALL, 'DESC', 300, $cursor);
-                $entries = method_exists('FreshRSS_Entry', 'fromTraversable')
-                    ? FreshRSS_Entry::fromTraversable($rows)
-                    : $rows;
+                $rows = $entryDAO->listWhere('a', 0, FreshRSS_Entry::STATE_ALL, order: 'DESC', id_max: (string)$cursor, limit: 300);
+                $entries = $rows;
             } catch (\Throwable $e) {
                 Minz_Log::error('Hister: lecture impossible (' . $e->getMessage() . ')');
                 break;
