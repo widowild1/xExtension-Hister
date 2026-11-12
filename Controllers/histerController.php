@@ -67,11 +67,14 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
     }
 
     private function currentUsername(): string {
-        $user = FreshRSS_Auth::user();
-        if (!is_string($user) || $user === '') {
+        $user = '';
+        if (class_exists('Minz_User', false) && method_exists('Minz_User', 'name')) {
+            $user = (string)Minz_User::name();
+        }
+        if ($user === '') {
             $user = Minz_Session::paramString('currentUser');
         }
-        $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string)$user);
+        $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $user);
         return ($sanitized !== null && $sanitized !== '') ? $sanitized : '_';
     }
 
