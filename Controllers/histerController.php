@@ -180,6 +180,21 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         $user = $this->currentUsername();
         @unlink(DATA_PATH . '/hister-queue-' . $user . '.jsonl.lock');
 
+        $statusFile = DATA_PATH . '/hister-drain-status.json';
+        @file_put_contents($statusFile, json_encode([
+            'running' => true,
+            'processed' => 0,
+            'total' => 0,
+            'pct' => 0.0,
+            'sent' => 0,
+            'conflict' => 0,
+            'failed' => 0,
+            'dead' => 0,
+            'rate' => 0.0,
+            'eta_min' => 0.0,
+            'message' => 'Initialisation du dépilage...',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
         $envVars = sprintf(
             'FRESHRSS_DATA=%s HISTER_USER=%s',
             escapeshellarg(DATA_PATH),
