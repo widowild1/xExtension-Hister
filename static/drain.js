@@ -15,6 +15,20 @@
 
         let interval = null;
 
+        function setDoneMessage(text) {
+            if (!startWrapper || !text) return;
+            let msgEl = document.getElementById('drain-done-message');
+            if (!msgEl) {
+                msgEl = document.createElement('p');
+                msgEl.id = 'drain-done-message';
+                msgEl.style.color = '#047857';
+                msgEl.style.fontWeight = 'bold';
+                msgEl.style.margin = '10px 0';
+                startWrapper.insertBefore(msgEl, startWrapper.firstChild);
+            }
+            msgEl.textContent = text;
+        }
+
         function updateUI(d) {
             if (queueSizeText && d.queue_size !== undefined) {
                 queueSizeText.textContent = d.queue_size + ' article(s) en file d\'attente';
@@ -34,19 +48,17 @@
                         ' articles (' + pct + '%) — ' + (d.rate || 0) + ' art/s — Reste ~' + (d.eta_min || 0) + ' min';
                 }
                 if (detailText) {
-                    detailText.innerHTML = '(+' + (d.sent || 0) + ' indexés | ' + (d.conflict || 0) + ' vus) — <em>Actualisation en direct sans rechargement</em>';
+                    detailText.innerHTML = '(+' + (d.sent || 0) + ' indexés | ' + (d.conflict || 0) + ' vus | ' +
+                        (d.failed || 0) + ' retry | ' + (d.dead || 0) + ' morts) — <em>Actualisation en direct</em>';
                 }
             } else {
-                if (d.pct === 100) {
-                    if (bar) {
-                        bar.style.width = '100%';
-                        bar.textContent = '100%';
-                    }
-                    if (statusText) {
-                        statusText.textContent = '✅ Dépilage terminé avec succès ! (' + (d.total || 0) + ' articles traités)';
-                    }
+                if (progressWrapper) progressWrapper.style.display = 'none';
+                if (startWrapper) startWrapper.style.display = 'block';
+
+                if (d.message) {
+                    setDoneMessage('✅ ' + d.message);
                 }
-                if (interval && !d.running) {
+                if (interval) {
                     clearInterval(interval);
                     interval = null;
                 }
