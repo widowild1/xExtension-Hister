@@ -23,18 +23,17 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             if (Minz_Request::isAjax()) {
                 $this->view->_layout(false);
                 header('Content-Type: application/json; charset=UTF-8', true, 404);
-                echo json_encode(['status' => 'error', 'message' => 'Article introuvable']);
+                echo json_encode(['status' => 'error', 'message' => 'Article introuvable'], JSON_UNESCAPED_UNICODE);
                 exit;
             }
             Minz_Request::bad(_t('feedback.sub.error'), ['c' => 'index', 'a' => 'index']);
             return;
         }
 
-        /** @var HisterExtension|null $ext */
-        $ext = Minz_ExtensionManager::findExtension('Hister');
+        $ext = $this->histerExtension();
         $success = false;
 
-        if ($ext instanceof HisterExtension) {
+        if ($ext !== null) {
             $success = $ext->sendToHister($entry, false, true, true);
         }
 
@@ -42,20 +41,20 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             $this->view->_layout(false);
             header('Content-Type: application/json; charset=UTF-8');
             echo json_encode([
-                'status' => $success ? 'ok' : (($ext instanceof HisterExtension && $ext->wasQueued()) ? 'queued' : 'error'),
+                'status' => $success ? 'ok' : (($ext !== null && $ext->wasQueued()) ? 'queued' : 'error'),
                 'entry_id' => $entryId,
                 'message' => $success
                     ? _t('ext.hister.success_notification')
-                    : (($ext instanceof HisterExtension && $ext->wasQueued())
+                    : (($ext !== null && $ext->wasQueued())
                         ? _t('ext.hister.queued_notification')
                         : _t('ext.hister.error_notification')),
-            ]);
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
         if ($success) {
             Minz_Request::good(_t('ext.hister.success_notification'), ['c' => 'index', 'a' => 'index']);
-        } elseif ($ext instanceof HisterExtension && $ext->wasQueued()) {
+        } elseif ($ext !== null && $ext->wasQueued()) {
             Minz_Request::good(_t('ext.hister.queued_notification'), ['c' => 'index', 'a' => 'index']);
         } else {
             Minz_Request::bad(_t('ext.hister.error_notification'), ['c' => 'index', 'a' => 'index']);
@@ -65,6 +64,20 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
     private function histerExtension(): ?HisterExtension {
         $ext = Minz_ExtensionManager::findExtension('Hister');
         return $ext instanceof HisterExtension ? $ext : null;
+    }
+
+    private function currentUsername(): string {
+        $user = FreshRSS_Auth::user();
+        if (!is_string($user) || $user === '') {
+            $user = Minz_Session::paramString('currentUser');
+        }
+        $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', (string)$user);
+        return ($sanitized !== null && $sanitized !== '') ? $sanitized : '_';
+    }
+
+    private function isDrainRunning(): bool {
+        $output = @shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"');
+        return is_string($output) && trim($output) !== '';
     }
 
     private function backToConfiguration(string $message, bool $ok): void {
@@ -142,29 +155,37 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
-        $running = !empty(trim((string)@shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"')));
-        if ($running) {
+        $ext = $this->histerExtension();
+        if ($ext === null) {
+            Minz_Error::error(404);
+            return;
+        }
+
+        try {
+            $ext->saveSettingsFromRequest();
+        } catch (\Throwable $e) {
+            Minz_Log::error('Hister: ' . $e->getMessage() . ' (' . $e->getFile() . ':' . $e->getLine() . ')');
+            $this->backToConfiguration('Erreur lors de la sauvegarde des paramètres : ' . $e->getMessage(), false);
+            return;
+        }
+
+        if ($this->isDrainRunning()) {
             $this->backToConfiguration('Le dépilage est déjà en cours d\'exécution.', true);
             return;
         }
 
-        $ext = $this->histerExtension();
-        $baseApiUrl = $ext instanceof HisterExtension ? rtrim($ext->getApiUrl(), '/') : '';
-        $endpoint = $ext instanceof HisterExtension ? ('/' . ltrim($ext->getEndpointPath(), '/')) : '/api/add';
-        $fullApiUrl = $baseApiUrl !== '' ? ($baseApiUrl . $endpoint) : '';
-        $apiToken = $ext instanceof HisterExtension ? $ext->getApiToken() : '';
-        $user = FreshRSS_Context::$user_conf->user ?? 'widowild';
-
+        $user = $this->currentUsername();
         @unlink(DATA_PATH . '/hister-queue-' . $user . '.jsonl.lock');
 
+        // Seuls le chemin de données et l'utilisateur sont transmis ; le script Python lit le token directement dans config.php
         $envVars = sprintf(
-            'HISTER_URL=%s HISTER_TOKEN=%s HISTER_USER=%s',
-            escapeshellarg($fullApiUrl),
-            escapeshellarg($apiToken),
+            'FRESHRSS_DATA=%s HISTER_USER=%s',
+            escapeshellarg(DATA_PATH),
             escapeshellarg($user)
         );
 
-        $cmd = "{$envVars} /usr/bin/nohup /usr/bin/python3 -u /usr/local/bin/drain_hister_queue.py </dev/null > " . DATA_PATH . "/hister-drain.log 2>&1 &";
+        $logFile = escapeshellarg(DATA_PATH . '/hister-drain.log');
+        $cmd = "{$envVars} /usr/bin/nohup /usr/bin/python3 -u /usr/local/bin/drain_hister_queue.py </dev/null > {$logFile} 2>&1 &";
         exec($cmd);
         usleep(400000);
 
@@ -178,8 +199,19 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         }
 
         exec('/usr/bin/pkill -f "drain_hister_queue\.py"');
-        $user = FreshRSS_Context::$user_conf->user ?? 'widowild';
+        $user = $this->currentUsername();
         @unlink(DATA_PATH . '/hister-queue-' . $user . '.jsonl.lock');
+
+        $statusFile = DATA_PATH . '/hister-drain-status.json';
+        if (is_file($statusFile)) {
+            $data = json_decode((string)file_get_contents($statusFile), true);
+            if (is_array($data)) {
+                $data['running'] = false;
+                $data['message'] = 'Traitement interrompu manuellement.';
+                @file_put_contents($statusFile, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            }
+        }
+
         $this->backToConfiguration('Arrêt du dépilage demandé.', true);
     }
 
@@ -192,7 +224,7 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         $this->view->_layout(false);
         header('Content-Type: application/json; charset=UTF-8');
 
-        $running = !empty(trim((string)@shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"')));
+        $running = $this->isDrainRunning();
         $statusFile = DATA_PATH . '/hister-drain-status.json';
         $data = ['running' => $running];
 
@@ -204,9 +236,9 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         }
 
         $ext = $this->histerExtension();
-        $data['queue_size'] = $ext instanceof HisterExtension ? $ext->queueSize() : 0;
+        $data['queue_size'] = $ext !== null ? $ext->queueSize() : 0;
 
-        echo json_encode($data);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
 }
