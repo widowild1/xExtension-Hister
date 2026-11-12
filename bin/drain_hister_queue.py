@@ -15,7 +15,10 @@ from threading import Lock, Event
 
 DATA_DIR = os.getenv("FRESHRSS_DATA", "/opt/freshrss/data")
 STATUS_FILE = os.path.join(DATA_DIR, "hister-drain-status.json")
-WORKERS = 4
+WORKERS = max(1, int(os.getenv("HISTER_WORKERS", "1")))
+REQUEST_DELAY = max(0.0, float(os.getenv("HISTER_DELAY", "0.25")))
+BACKOFF_THRESHOLD = 3
+BACKOFF_SECONDS = 15
 PERMANENT_HTTP_ERRORS = {400, 404, 410, 422}
 
 stop_event = Event()
@@ -129,7 +132,7 @@ def send_to_hister(api_url, api_token, payload):
         "Accept": "application/json",
         "Origin": "same-origin",
         "Authorization": f"Bearer {api_token}",
-        "User-Agent": "FreshRSS-Hister-Bulk/1.2",
+        "User-Agent": "FreshRSS-Hister-Bulk/1.3",
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
@@ -165,7 +168,7 @@ def main():
     dead_letter_file = os.path.join(DATA_DIR, f"hister-dead-{username}.jsonl")
     lock_file = base_queue_file + ".lock"
 
-    print(f"[*] Cible : {api_url}")
+    print(f"[*] Cible : {api_url} (workers={WORKERS}, delay={REQUEST_DELAY}s)")
     print(f"[*] Verrouillage : {lock_file}")
     lock_fd = acquire_lock(lock_file, max_wait=60)
 
@@ -206,7 +209,7 @@ def main():
         })
 
         start_time = time.time()
-        stats = {"sent": 0, "conflict": 0, "failed": 0, "dead": 0, "processed": 0}
+        stats = {"sent": 0, "conflict": 0, "failed": 0, "dead": 0, "processed": 0, "consecutive_errors": 0}
         stats_lock = Lock()
         retry_payloads = []
         dead_payloads = []
@@ -219,21 +222,30 @@ def main():
                 return
 
             outcome, code = send_to_hister(api_url, api_token, payload)
+            should_backoff = False
+
             with stats_lock:
                 stats["processed"] += 1
                 if outcome == "sent":
                     stats["sent"] += 1
+                    stats["consecutive_errors"] = 0
                 elif outcome == "conflict":
                     stats["conflict"] += 1
+                    stats["consecutive_errors"] = 0
                 elif outcome == "dead":
                     stats["dead"] += 1
+                    stats["consecutive_errors"] = 0
                     dead_payloads.append((code, payload))
                 else:
                     stats["failed"] += 1
+                    stats["consecutive_errors"] += 1
                     retry_payloads.append(payload)
+                    if stats["consecutive_errors"] >= BACKOFF_THRESHOLD:
+                        stats["consecutive_errors"] = 0
+                        should_backoff = True
 
                 p = stats["processed"]
-                if p % 20 == 0 or p == total:
+                if p % 20 == 0 or p == total or should_backoff:
                     elapsed = time.time() - start_time
                     rate = p / elapsed if elapsed > 0 else 0
                     pct = round((p / total) * 100, 1)
@@ -251,17 +263,21 @@ def main():
                     )
                     sys.stdout.flush()
 
+            if should_backoff and not stop_event.is_set():
+                print(f"\n[!] Hister saturé/injoignable : pause de récupération ({BACKOFF_SECONDS}s)...")
+                stop_event.wait(BACKOFF_SECONDS)
+            elif REQUEST_DELAY > 0 and not stop_event.is_set():
+                stop_event.wait(REQUEST_DELAY)
+
         with ThreadPoolExecutor(max_workers=WORKERS) as executor:
             list(executor.map(worker, unique_items.values()))
 
-        # Supprimer tous les fichiers sources traités (.jsonl et .jsonl.in)
         for qf in queue_files:
             try:
                 os.unlink(qf)
             except OSError:
                 pass
 
-        # Réécrire les échecs temporaires et les éléments non traités en cas d'arrêt manuel
         remaining_items = retry_payloads + unprocessed_payloads
         if remaining_items:
             with open(base_queue_file, "a", encoding="utf-8") as f:
@@ -269,7 +285,6 @@ def main():
                 for rp in remaining_items:
                     f.write(json.dumps({"queued_at": now_ts, "fetch": False, "payload": rp}) + "\n")
 
-        # Archiver les liens morts permanents (400/404/410/422) hors de la file active
         if dead_payloads:
             with open(dead_letter_file, "a", encoding="utf-8") as f:
                 now_ts = int(time.time())
