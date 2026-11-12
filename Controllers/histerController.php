@@ -177,7 +177,6 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         $user = $this->currentUsername();
         @unlink(DATA_PATH . '/hister-queue-' . $user . '.jsonl.lock');
 
-        // Seuls le chemin de données et l'utilisateur sont transmis ; le script Python lit le token directement dans config.php
         $envVars = sprintf(
             'FRESHRSS_DATA=%s HISTER_USER=%s',
             escapeshellarg(DATA_PATH),

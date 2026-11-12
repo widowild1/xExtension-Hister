@@ -6,23 +6,34 @@ import json
 import time
 import glob
 import fcntl
+import signal
 import subprocess
 import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
+from threading import Lock, Event
 
 DATA_DIR = os.getenv("FRESHRSS_DATA", "/opt/freshrss/data")
 STATUS_FILE = os.path.join(DATA_DIR, "hister-drain-status.json")
 WORKERS = 4
 PERMANENT_HTTP_ERRORS = {400, 404, 410, 422}
 
+stop_event = Event()
+
+
+def handle_sigterm(signum, frame):
+    stop_event.set()
+
+
+signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)
+
 
 def write_status(data):
     tmp = STATUS_FILE + ".tmp"
     try:
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f)
+            json.dump(data, f, ensure_ascii=False)
         os.replace(tmp, STATUS_FILE)
         try:
             os.chmod(STATUS_FILE, 0o666)
@@ -118,7 +129,7 @@ def send_to_hister(api_url, api_token, payload):
         "Accept": "application/json",
         "Origin": "same-origin",
         "Authorization": f"Bearer {api_token}",
-        "User-Agent": "FreshRSS-Hister-Bulk/1.1",
+        "User-Agent": "FreshRSS-Hister-Bulk/1.2",
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
@@ -145,8 +156,8 @@ def main():
     username = detect_username(initial_files)
     api_url, api_token = resolve_hister_credentials(username)
     if not api_url or not api_token:
-        err = "[-] Erreur critique : URL ou Jeton Hister introuvable dans la configuration FreshRSS."
-        print(err)
+        err = "Erreur critique : URL ou Jeton Hister introuvable dans la configuration FreshRSS."
+        print(f"[-] {err}")
         write_status({"running": False, "processed": 0, "total": 0, "pct": 0.0, "message": err})
         sys.exit(1)
 
@@ -159,7 +170,6 @@ def main():
     lock_fd = acquire_lock(lock_file, max_wait=60)
 
     try:
-        # Lister les fichiers sous verrou pour ne manquer aucun tampon .in
         queue_files = find_queue_files()
         raw_items = []
         for qf in queue_files:
@@ -200,8 +210,14 @@ def main():
         stats_lock = Lock()
         retry_payloads = []
         dead_payloads = []
+        unprocessed_payloads = []
 
         def worker(payload):
+            if stop_event.is_set():
+                with stats_lock:
+                    unprocessed_payloads.append(payload)
+                return
+
             outcome, code = send_to_hister(api_url, api_token, payload)
             with stats_lock:
                 stats["processed"] += 1
@@ -245,24 +261,32 @@ def main():
             except OSError:
                 pass
 
-        # Réécrire uniquement les échecs temporaires dans la file active
-        if retry_payloads:
+        # Réécrire les échecs temporaires et les éléments non traités en cas d'arrêt manuel
+        remaining_items = retry_payloads + unprocessed_payloads
+        if remaining_items:
             with open(base_queue_file, "a", encoding="utf-8") as f:
-                for rp in retry_payloads:
-                    f.write(json.dumps({"queued_at": int(time.time()), "fetch": False, "payload": rp}) + "\n")
+                now_ts = int(time.time())
+                for rp in remaining_items:
+                    f.write(json.dumps({"queued_at": now_ts, "fetch": False, "payload": rp}) + "\n")
 
-        # Archiver les liens morts permanents (404/410) hors de la file active
+        # Archiver les liens morts permanents (400/404/410/422) hors de la file active
         if dead_payloads:
             with open(dead_letter_file, "a", encoding="utf-8") as f:
+                now_ts = int(time.time())
                 for code, dp in dead_payloads:
-                    f.write(json.dumps({"failed_at": int(time.time()), "http_code": code, "payload": dp}) + "\n")
+                    f.write(json.dumps({"failed_at": now_ts, "http_code": code, "payload": dp}) + "\n")
 
-        summary = (
-            f"Terminé : {stats['sent']} indexés, {stats['conflict']} déjà présents, "
-            f"{stats['failed']} à retenter, {stats['dead']} ignorés (404/410)."
-        )
+        if stop_event.is_set():
+            summary = f"Interrompu : {stats['sent']} indexés, {len(remaining_items)} conservés en file."
+        else:
+            summary = (
+                f"Terminé : {stats['sent']} indexés, {stats['conflict']} déjà présents, "
+                f"{stats['failed']} à retenter, {stats['dead']} ignorés (404/410)."
+            )
+
+        pct_final = round((stats["processed"] / total) * 100, 1) if total > 0 else 100.0
         write_status({
-            "running": False, "processed": total, "total": total, "pct": 100.0,
+            "running": False, "processed": stats["processed"], "total": total, "pct": pct_final,
             "sent": stats["sent"], "conflict": stats["conflict"],
             "failed": stats["failed"], "dead": stats["dead"],
             "message": summary
