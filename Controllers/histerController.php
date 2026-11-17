@@ -78,6 +78,42 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         return ($sanitized !== null && $sanitized !== '') ? $sanitized : '_';
     }
 
+    /**
+     * Vérifie que le script de dépilage existe et possède les permissions d'exécution (+x).
+     * Tente un chmod 0755 automatique si le processus PHP en a le droit.
+     *
+     * @return array{ok: bool, error: string}
+     */
+    private function checkDrainScript(): array {
+        $targetScript = '/usr/local/bin/drain_hister_queue.py';
+        $repoScript = dirname(__DIR__) . '/bin/drain_hister_queue.py';
+
+        if (!file_exists($targetScript)) {
+            return [
+                'ok' => false,
+                'error' => 'Script introuvable : ' . $targetScript . ' (vérifiez le lien symbolique vers ' . $repoScript . ').',
+            ];
+        }
+
+        if (!is_executable($targetScript)) {
+            @chmod($targetScript, 0755);
+            if (file_exists($repoScript)) {
+                @chmod($repoScript, 0755);
+            }
+            clearstatcache(true, $targetScript);
+            clearstatcache(true, $repoScript);
+
+            if (!is_executable($targetScript)) {
+                return [
+                    'ok' => false,
+                    'error' => 'Permission refusée : ' . $targetScript . ' n\'est pas exécutable. Exécutez : chmod +x ' . $repoScript,
+                ];
+            }
+        }
+
+        return ['ok' => true, 'error' => ''];
+    }
+
     private function isDrainRunning(): bool {
         $output = @shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"');
         return is_string($output) && trim($output) !== '';
@@ -172,6 +208,13 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
             return;
         }
 
+        $scriptCheck = $this->checkDrainScript();
+        if (!$scriptCheck['ok']) {
+            Minz_Log::error('Hister: ' . $scriptCheck['error']);
+            $this->backToConfiguration('⚠️ ' . $scriptCheck['error'], false);
+            return;
+        }
+
         if ($this->isDrainRunning()) {
             $this->backToConfiguration('Le dépilage est déjà en cours d\'exécution.', true);
             return;
@@ -242,13 +285,18 @@ final class FreshExtension_hister_Controller extends Minz_ActionController {
         header('Content-Type: application/json; charset=UTF-8');
 
         $running = $this->isDrainRunning();
+        $scriptCheck = $this->checkDrainScript();
         $statusFile = DATA_PATH . '/hister-drain-status.json';
-        $data = ['running' => $running];
+        $data = [
+            'running' => $running,
+            'script_ok' => $scriptCheck['ok'],
+            'script_error' => $scriptCheck['error'],
+        ];
 
         if (is_file($statusFile)) {
             $fileData = json_decode((string)file_get_contents($statusFile), true);
             if (is_array($fileData)) {
-                $data = array_merge($fileData, ['running' => $running]);
+                $data = array_merge($fileData, $data);
             }
         }
 
