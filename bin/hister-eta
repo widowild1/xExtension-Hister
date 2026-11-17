@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SINCE="${1:-24 hours ago}"
+
+# Récupérer la première et la dernière ligne Reindexed de la session
+FIRST_LINE=$(journalctl -u hister --since "$SINCE" --no-pager | grep "Reindexed \[" | head -n 1 || true)
+LAST_LINE=$(journalctl -u hister --since "$SINCE" --no-pager | grep "Reindexed \[" | tail -n 1 || true)
+
+if [ -z "$LAST_LINE" ]; then
+    echo "Aucune donnée de réindexation trouvée depuis : $SINCE"
+    exit 1
+fi
+
+# Extraire les horodatages ISO et les compteurs
+START_TS=$(echo "$FIRST_LINE" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
+END_TS=$(echo "$LAST_LINE" | grep -oP '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
+
+START_COUNT=$(echo "$FIRST_LINE" | grep -oP 'Reindexed \[\K[0-9]+')
+CURRENT_COUNT=$(echo "$LAST_LINE" | grep -oP 'Reindexed \[\K[0-9]+')
+TOTAL_COUNT=$(echo "$LAST_LINE" | grep -oP 'Reindexed \[[0-9]+/\K[0-9]+')
+
+# Convertir en secondes Epoch
+START_SEC=$(date -d "$START_TS" +%s)
+END_SEC=$(date -d "$END_TS" +%s)
+ELAPSED_SEC=$((END_SEC - START_SEC))
+PROCESSED=$((CURRENT_COUNT - START_COUNT))
+
+if [ "$ELAPSED_SEC" -le 0 ] || [ "$PROCESSED" -le 0 ]; then
+    echo "En attente d'un deuxième palier pour calculer la cadence..."
+    exit 0
+fi
+
+# Calculs de cadence et d'ETA
+RATE_PER_MIN=$(awk "BEGIN {printf \"%.1f\", ($PROCESSED / $ELAPSED_SEC) * 60}")
+REMAINING=$((TOTAL_COUNT - CURRENT_COUNT))
+[ "$REMAINING" -lt 0 ] && REMAINING=0
+
+REM_SEC=$(awk "BEGIN {printf \"%.0f\", ($REMAINING / $PROCESSED) * $ELAPSED_SEC}")
+FINISH_DATE=$(date -d "@$((END_SEC + REM_SEC))" "+%A %d/%m à %H:%M")
+PCT=$(awk "BEGIN {printf \"%.2f\", ($CURRENT_COUNT / $TOTAL_COUNT) * 100}")
+
+echo "Progression  : $CURRENT_COUNT / $TOTAL_COUNT ($PCT%)"
+echo "Cadence moy. : $RATE_PER_MIN articles/min"
+echo "Temps restant: $((REM_SEC / 3600))h $(((REM_SEC % 3600) / 60))m"
+echo "Fin estimée  : $FINISH_DATE"
