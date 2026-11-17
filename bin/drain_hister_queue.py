@@ -187,10 +187,13 @@ def main():
                         except json.JSONDecodeError:
                             pass
 
+        MEDIA_EXTS = (".mp4", ".wmv", ".mkv", ".avi", ".mov", ".webm", ".jpg", ".jpeg", ".png", ".gif", ".zip", ".rar")
         unique_items = {}
         for item in raw_items:
             payload = item.get("payload")
             if isinstance(payload, dict) and payload.get("url"):
+                if payload["url"].lower().split("?")[0].endswith(MEDIA_EXTS):
+                    continue
                 unique_items[payload["url"]] = payload
 
         total = len(unique_items)
