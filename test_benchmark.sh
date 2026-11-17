@@ -72,13 +72,60 @@ else
     log_pass "Aucun namespace restrictif dans extension.php (namespace global respecté)"
 fi
 
-# D. Permissions fichiers (644) et répertoires (755)
+# D. Permissions fichiers (644) et exécutables bin/ (755)
 exec_php=$(find . -path "./.git" -prune -o -type f -name "*.php" -perm -111 -print)
 if [[ -z "${exec_php}" ]]; then
     log_pass "Permissions fichiers conformes (aucun bit d'exécution sur les fichiers .php)"
 else
     log_warn "Fichiers PHP avec bit d'exécution actif : ${exec_php}"
 fi
+
+if [[ -d "bin" ]]; then
+    bin_count=0
+    for script in bin/*; do
+        [[ -f "${script}" ]] || continue
+        ((bin_count++))
+        if [[ -x "${script}" ]]; then
+            log_pass "Permission exécutable (+x) : ${script}"
+        else
+            log_fail "Permission exécutable (+x) manquante sur : ${script} (exécutez : chmod +x ${script})"
+        fi
+
+        # Validation syntaxique du binaire selon son shebang
+        shebang=$(head -n 1 "${script}")
+        if [[ "${shebang}" == *"python"* ]]; then
+            if python3 -m py_compile "${script}" 2>/dev/null; then
+                log_pass "Syntaxe Python : ${script}"
+            else
+                log_fail "Erreur de syntaxe Python dans ${script}"
+            fi
+        elif [[ "${shebang}" == *"bash"* || "${shebang}" == *"/sh"* ]]; then
+            if bash -n "${script}" 2>/dev/null; then
+                log_pass "Syntaxe Shell : ${script}"
+            else
+                log_fail "Erreur de syntaxe Shell dans ${script}"
+            fi
+        fi
+    done
+
+    if [[ ${bin_count} -eq 0 ]]; then
+        log_warn "Dossier bin/ vide"
+    fi
+else
+    log_fail "Dossier bin/ introuvable"
+fi
+
+for sys_link in /usr/local/bin/drain_hister_queue.py /usr/local/bin/hister-status; do
+    if [[ -e "${sys_link}" ]]; then
+        if [[ -x "${sys_link}" ]]; then
+            log_pass "Binaire système exécutable : ${sys_link}"
+        else
+            log_fail "Binaire système non exécutable : ${sys_link}"
+        fi
+    else
+        log_warn "Lien symbolique système absent : ${sys_link}"
+    fi
+done
 
 # ------------------------------------------------------------------------------
 # 2. Anonymisation et Protection des Données Personnelles (PII)
@@ -178,8 +225,8 @@ else
     log_warn "Code HTTP inattendu reçu lors de la requête API : ${api_response_code}"
 fi
 
-# Contrôle du journal des 60 dernières secondes
-latest_sql_error=$(tail -n 30 "${DATA_DIR}/users/widowild/log.txt" 2>/dev/null | grep -F "out of range for type bigint" || true)
+# Contrôle des journaux utilisateurs des dernières lignes (sans chemin utilisateur en dur)
+latest_sql_error=$(tail -n 30 "${DATA_DIR}"/users/*/log.txt 2>/dev/null | grep -F "out of range for type bigint" || true)
 if [[ -z "${latest_sql_error}" ]]; then
     log_pass "Aucun débordement bigint enregistré dans log.txt lors du tir de test"
 else
