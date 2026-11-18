@@ -1,0 +1,17 @@
+[Unit]
+Description=Dépilage de la file d'attente FreshRSS vers Nogon (/api/batch)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=900
+MemoryMax=256M
+Environment="NOGON_WORKERS=2"
+Environment="NOGON_BATCH_SIZE=25"
+Environment="NOGON_DELAY=0.5"
+ExecStart=/usr/local/bin/drain_nogon_queue.py

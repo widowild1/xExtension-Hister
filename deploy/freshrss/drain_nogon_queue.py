@@ -1,0 +1,1 @@
+/opt/freshrss/extensions/xExtension-Nogon/bin/drain_nogon_queue.py

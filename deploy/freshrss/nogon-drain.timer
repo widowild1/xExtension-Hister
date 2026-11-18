@@ -1,0 +1,10 @@
+[Unit]
+Description=Exécution périodique du dépilage Nogon
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+Unit=nogon-drain.service
+
+[Install]
+WantedBy=timers.target

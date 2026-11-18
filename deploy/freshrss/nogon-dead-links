@@ -1,0 +1,10 @@
+/opt/freshrss/data/nogon-dead-links*.jsonl {
+    su www-data www-data
+    monthly
+    rotate 3
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
