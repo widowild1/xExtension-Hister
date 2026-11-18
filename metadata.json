@@ -1,8 +1,8 @@
 {
   "name": "Hister",
   "author": "widowild",
-  "description": "Intégration rapide entre FreshRSS et Hister via son API (/api/add), avec tags envoyés dans le label.",
-  "version": "2.5.1",
+  "description": "Intégration rapide entre FreshRSS et Nogon (anciennement Hister) via son API (/api/add), avec tags envoyés dans le label.",
+  "version": "2.6.0",
   "entrypoint": "Hister",
   "type": "user"
 }
