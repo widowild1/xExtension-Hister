@@ -67,7 +67,7 @@ def render(data_dir):
 
     state = f"ACTIF (PID {', '.join(pids)})" if running_proc else "ARRÊTÉ"
     lines = [
-        f"=== Hister Queue Monitor ({time.strftime('%H:%M:%S')}) ===",
+        f"=== Nogon Queue Monitor ({time.strftime('%H:%M:%S')}) ===",
         f"Worker      : {state}",
         f"Progression : [{bar}] {pct:5.1f}% ({processed}/{total})",
         f"Détails     : +{sent} indexés | {conflict} vus (409) | {failed} retry | {dead} morts",
