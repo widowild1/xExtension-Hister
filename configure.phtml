@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-/** @var HisterExtension $this */
+/** @var NogonExtension $this */
 $this->registerTranslates();
 
-$drainStatusFile = DATA_PATH . '/hister-drain-status.json';
-$drainRunning = !empty(trim((string)@shell_exec('/usr/bin/pgrep -f "drain_hister_queue\.py"')));
+$drainStatusFile = DATA_PATH . '/nogon-drain-status.json';
+$drainRunning = !empty(trim((string)@shell_exec('/usr/bin/pgrep -f "drain_nogon_queue\.py"')));
 $drainData = is_file($drainStatusFile) ? json_decode((string)file_get_contents($drainStatusFile), true) : null;
 $pct = isset($drainData['pct']) ? (float)$drainData['pct'] : 0.0;
 $processed = isset($drainData['processed']) ? (int)$drainData['processed'] : 0;
@@ -16,11 +16,11 @@ $eta = isset($drainData['eta_min']) ? (float)$drainData['eta_min'] : 0.0;
 
 // Vérification des permissions exécutables (+x) sur les scripts
 $scriptsToVerify = [
-    '/usr/local/bin/drain_hister_queue.py',
-    '/usr/local/bin/hister-status',
-    __DIR__ . '/bin/drain_hister_queue.py',
-    __DIR__ . '/bin/hister-status',
-    __DIR__ . '/bin/hister-eta',
+    '/usr/local/bin/drain_nogon_queue.py',
+    '/usr/local/bin/nogon-status',
+    __DIR__ . '/bin/drain_nogon_queue.py',
+    __DIR__ . '/bin/nogon-status',
+    __DIR__ . '/bin/nogon-eta',
 ];
 $missingScripts = [];
 $nonExecutableScripts = [];
@@ -47,42 +47,42 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
     <input type="hidden" name="_csrf" value="<?= FreshRSS_Auth::csrfToken() ?>" />
 
     <div class="form-group">
-        <label class="group-name" for="api_url"><?= _t('ext.hister.api_url') ?></label>
+        <label class="group-name" for="api_url"><?= _t('ext.nogon.api_url') ?></label>
         <div class="group-controls">
             <input type="url" id="api_url" name="api_url" class="input-text"
                    value="<?= htmlspecialchars($this->getApiUrl(), ENT_QUOTES, 'UTF-8') ?>"
                    placeholder="http://127.0.0.1:4433" required />
-            <p class="help"><?= _t('ext.hister.api_url_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.api_url_help') ?></p>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="endpoint_path"><?= _t('ext.hister.endpoint_path') ?></label>
+        <label class="group-name" for="endpoint_path"><?= _t('ext.nogon.endpoint_path') ?></label>
         <div class="group-controls">
             <input type="text" id="endpoint_path" name="endpoint_path" class="input-text"
                    value="<?= htmlspecialchars($this->getEndpointPath(), ENT_QUOTES, 'UTF-8') ?>"
                    placeholder="/api/add" required />
-            <p class="help"><?= _t('ext.hister.endpoint_path_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.endpoint_path_help') ?></p>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="api_token"><?= _t('ext.hister.api_token') ?></label>
+        <label class="group-name" for="api_token"><?= _t('ext.nogon.api_token') ?></label>
         <div class="group-controls">
             <input type="password" id="api_token" name="api_token" class="input-text"
                    value=""
-                   placeholder="<?= $this->getApiToken() !== '' ? _t('ext.hister.api_token_set') : '' ?>" autocomplete="off" />
-            <p class="help"><?= _t('ext.hister.api_token_help') ?></p>
+                   placeholder="<?= $this->getApiToken() !== '' ? _t('ext.nogon.api_token_set') : '' ?>" autocomplete="off" />
+            <p class="help"><?= _t('ext.nogon.api_token_help') ?></p>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="default_tags"><?= _t('ext.hister.default_tags') ?></label>
+        <label class="group-name" for="default_tags"><?= _t('ext.nogon.default_tags') ?></label>
         <div class="group-controls">
             <input type="text" id="default_tags" name="default_tags" class="input-text"
                    value="<?= htmlspecialchars($this->getDefaultTags(), ENT_QUOTES, 'UTF-8') ?>"
                    placeholder="freshrss, lecture" />
-            <p class="help"><?= _t('ext.hister.default_tags_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.default_tags_help') ?></p>
         </div>
     </div>
 
@@ -91,7 +91,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="include_category_tag">
                 <input type="checkbox" id="include_category_tag" name="include_category_tag" value="1"
                     <?= $this->isIncludeCategoryTag() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.include_category_tag') ?>
+                <?= _t('ext.nogon.include_category_tag') ?>
             </label>
         </div>
     </div>
@@ -101,7 +101,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="include_feed_tag">
                 <input type="checkbox" id="include_feed_tag" name="include_feed_tag" value="1"
                     <?= $this->isIncludeFeedTag() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.include_feed_tag') ?>
+                <?= _t('ext.nogon.include_feed_tag') ?>
             </label>
         </div>
     </div>
@@ -111,7 +111,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="include_entry_tags">
                 <input type="checkbox" id="include_entry_tags" name="include_entry_tags" value="1"
                     <?= $this->isIncludeEntryTags() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.include_entry_tags') ?>
+                <?= _t('ext.nogon.include_entry_tags') ?>
             </label>
         </div>
     </div>
@@ -121,7 +121,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="ignore_skip_rules">
                 <input type="checkbox" id="ignore_skip_rules" name="ignore_skip_rules" value="1"
                     <?= $this->isIgnoreSkipRules() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.ignore_skip_rules') ?>
+                <?= _t('ext.nogon.ignore_skip_rules') ?>
             </label>
         </div>
     </div>
@@ -131,7 +131,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="auto_sync_all">
                 <input type="checkbox" id="auto_sync_all" name="auto_sync_all" value="1"
                     <?= $this->isAutoSyncAll() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.auto_sync_all') ?>
+                <?= _t('ext.nogon.auto_sync_all') ?>
             </label>
         </div>
     </div>
@@ -141,7 +141,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="sync_starred">
                 <input type="checkbox" id="sync_starred" name="sync_starred" value="1"
                     <?= $this->isSyncStarred() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.sync_starred') ?>
+                <?= _t('ext.nogon.sync_starred') ?>
             </label>
         </div>
     </div>
@@ -151,9 +151,9 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="sync_labeled">
                 <input type="checkbox" id="sync_labeled" name="sync_labeled" value="1"
                     <?= $this->isSyncLabeled() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.sync_labeled') ?>
+                <?= _t('ext.nogon.sync_labeled') ?>
             </label>
-            <p class="help"><?= _t('ext.hister.sync_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.sync_help') ?></p>
         </div>
     </div>
 
@@ -162,18 +162,18 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="clean_tracking">
                 <input type="checkbox" id="clean_tracking" name="clean_tracking" value="1"
                     <?= $this->isCleanTracking() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.clean_tracking') ?>
+                <?= _t('ext.nogon.clean_tracking') ?>
             </label>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="extra_tracking_params"><?= _t('ext.hister.extra_tracking_params') ?></label>
+        <label class="group-name" for="extra_tracking_params"><?= _t('ext.nogon.extra_tracking_params') ?></label>
         <div class="group-controls">
             <input type="text" id="extra_tracking_params" name="extra_tracking_params" class="input-text"
                    value="<?= htmlspecialchars($this->getExtraTrackingParams(), ENT_QUOTES, 'UTF-8') ?>"
                    placeholder="source, share_*" />
-            <p class="help"><?= _t('ext.hister.extra_tracking_params_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.extra_tracking_params_help') ?></p>
         </div>
     </div>
 
@@ -182,23 +182,23 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="flaresolverr_enabled">
                 <input type="checkbox" id="flaresolverr_enabled" name="flaresolverr_enabled" value="1"
                     <?= $this->isFlareEnabled() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.flaresolverr_enabled') ?>
+                <?= _t('ext.nogon.flaresolverr_enabled') ?>
             </label>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="flaresolverr_url"><?= _t('ext.hister.flaresolverr_url') ?></label>
+        <label class="group-name" for="flaresolverr_url"><?= _t('ext.nogon.flaresolverr_url') ?></label>
         <div class="group-controls">
             <input type="url" id="flaresolverr_url" name="flaresolverr_url" class="input-text"
                    value="<?= htmlspecialchars($this->getFlareUrl(), ENT_QUOTES, 'UTF-8') ?>"
                    placeholder="http://127.0.0.1:8191" />
-            <p class="help"><?= _t('ext.hister.flaresolverr_url_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.flaresolverr_url_help') ?></p>
         </div>
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="flaresolverr_timeout"><?= _t('ext.hister.flaresolverr_timeout') ?></label>
+        <label class="group-name" for="flaresolverr_timeout"><?= _t('ext.nogon.flaresolverr_timeout') ?></label>
         <div class="group-controls">
             <input type="number" id="flaresolverr_timeout" name="flaresolverr_timeout" class="input-text"
                    min="10" max="300" value="<?= (int)$this->getFlareTimeout() ?>" />
@@ -206,11 +206,11 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
     </div>
 
     <div class="form-group">
-        <label class="group-name" for="flush_seconds"><?= _t('ext.hister.flush_seconds') ?></label>
+        <label class="group-name" for="flush_seconds"><?= _t('ext.nogon.flush_seconds') ?></label>
         <div class="group-controls">
             <input type="number" id="flush_seconds" name="flush_seconds" class="input-text"
                    min="10" max="600" value="<?= (int)$this->getFlushSeconds() ?>" />
-            <p class="help"><?= _t('ext.hister.flush_seconds_help') ?></p>
+            <p class="help"><?= _t('ext.nogon.flush_seconds_help') ?></p>
         </div>
     </div>
 
@@ -219,17 +219,17 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
             <label class="checkbox" for="verify_ssl">
                 <input type="checkbox" id="verify_ssl" name="verify_ssl" value="1"
                     <?= $this->isVerifySsl() ? 'checked="checked"' : '' ?> />
-                <?= _t('ext.hister.verify_ssl') ?>
+                <?= _t('ext.nogon.verify_ssl') ?>
             </label>
         </div>
     </div>
 
     <!-- Encart de Dépilage Massif -->
-    <div id="hister-drain-box"
-         data-status-url="<?= _url('hister', 'drainStatus') ?>"
+    <div id="nogon-drain-box"
+         data-status-url="<?= _url('nogon', 'drainStatus') ?>"
          style="background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; padding: 15px; margin: 20px 0;">
         <h4 style="margin-top: 0;">⚡ Dépilage massif de la file d'attente</h4>
-        <p id="queue-size-text" class="help"><?= _t('ext.hister.queue_size', $this->queueSize()) ?></p>
+        <p id="queue-size-text" class="help"><?= _t('ext.nogon.queue_size', $this->queueSize()) ?></p>
 
         <?php if (!empty($missingScripts) || !empty($nonExecutableScripts)): ?>
             <div style="background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; border-radius: 4px; padding: 10px 12px; margin: 10px 0;">
@@ -264,7 +264,7 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
                 (+<?= $sent ?> indexés | <?= $conflict ?> vus) — <em>Actualisation en direct sans rechargement</em>
             </p>
             <div style="margin-top: 10px;">
-                <button type="submit" formmethod="post" formaction="<?= _url('hister', 'drainStop') ?>" class="btn btn-attention">🛑 Stopper le traitement</button>
+                <button type="submit" formmethod="post" formaction="<?= _url('nogon', 'drainStop') ?>" class="btn btn-attention">🛑 Stopper le traitement</button>
             </div>
         </div>
 
@@ -278,17 +278,17 @@ $drainScriptReady = empty($missingScripts) && empty($nonExecutableScripts);
                 </p>
             <?php endif; ?>
             <div style="margin-top: 10px;">
-                <button type="submit" formmethod="post" formaction="<?= _url('hister', 'drain') ?>" class="btn btn-important" <?= $drainScriptReady ? '' : 'disabled="disabled"' ?>>🚀 Lancer le dépilage en arrière-plan</button>
+                <button type="submit" formmethod="post" formaction="<?= _url('nogon', 'drain') ?>" class="btn btn-important" <?= $drainScriptReady ? '' : 'disabled="disabled"' ?>>🚀 Lancer le dépilage en arrière-plan</button>
             </div>
         </div>
     </div>
 
     <div class="form-actions">
         <button type="submit" class="btn btn-important"><?= _t('gen.action.submit') ?></button>
-        <button type="submit" formmethod="post" formaction="<?= _url('hister', 'testHister') ?>" class="btn"><?= _t('ext.hister.test_hister') ?></button>
-        <button type="submit" formmethod="post" formaction="<?= _url('hister', 'flare') ?>" class="btn"><?= _t('ext.hister.test_flare') ?></button>
-        <button type="submit" formmethod="post" formaction="<?= _url('hister', 'bulk') ?>" class="btn"><?= _t('ext.hister.bulk_enqueue') ?></button>
-        <button type="submit" formmethod="post" formaction="<?= _url('hister', 'flush') ?>" class="btn"><?= _t('ext.hister.sync_now') ?></button>
+        <button type="submit" formmethod="post" formaction="<?= _url('nogon', 'testNogon') ?>" class="btn"><?= _t('ext.nogon.test_nogon') ?></button>
+        <button type="submit" formmethod="post" formaction="<?= _url('nogon', 'flare') ?>" class="btn"><?= _t('ext.nogon.test_flare') ?></button>
+        <button type="submit" formmethod="post" formaction="<?= _url('nogon', 'bulk') ?>" class="btn"><?= _t('ext.nogon.bulk_enqueue') ?></button>
+        <button type="submit" formmethod="post" formaction="<?= _url('nogon', 'flush') ?>" class="btn"><?= _t('ext.nogon.sync_now') ?></button>
         <button type="reset" class="btn"><?= _t('gen.action.cancel') ?></button>
     </div>
 </form>

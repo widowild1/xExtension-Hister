@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Banc d'essai : xExtension-Hister & Intégration FreshRSS
+# Banc d'essai : xExtension-Nogon & Intégration FreshRSS
 # Validation : Conformité code, API, URLs, Anonymisation PII, Isolation Workflow
 # ==============================================================================
 
@@ -47,10 +47,10 @@ done
 if [[ -f "metadata.json" ]]; then
     if python3 -c "import json; json.load(open('metadata.json'))" 2>/dev/null; then
         ext_name=$(python3 -c "import json; print(json.load(open('metadata.json')).get('name', ''))")
-        if [[ "${ext_name}" == "Hister" ]]; then
-            log_pass "metadata.json valide (name: Hister)"
+        if [[ "${ext_name}" == "Nogon" ]]; then
+            log_pass "metadata.json valide (name: Nogon)"
         else
-            log_fail "metadata.json : le champ 'name' (${ext_name}) ne correspond pas à 'Hister'"
+            log_fail "metadata.json : le champ 'name' (${ext_name}) ne correspond pas à 'Nogon'"
         fi
     else
         log_fail "metadata.json n'est pas un JSON valide"
@@ -60,10 +60,10 @@ else
 fi
 
 # C. Vérification de la classe et du namespace global
-if grep -q "class HisterExtension extends Minz_Extension" extension.php; then
-    log_pass "Classe HisterExtension correctement déclarée"
+if grep -q "class NogonExtension extends Minz_Extension" extension.php; then
+    log_pass "Classe NogonExtension correctement déclarée"
 else
-    log_fail "Classe HisterExtension introuvable ou incorrectement nommée dans extension.php"
+    log_fail "Classe NogonExtension introuvable ou incorrectement nommée dans extension.php"
 fi
 
 if grep -E "^[[:space:]]*namespace[[:space:]]+" extension.php >/dev/null; then
@@ -115,7 +115,7 @@ else
     log_fail "Dossier bin/ introuvable"
 fi
 
-for sys_link in /usr/local/bin/drain_hister_queue.py /usr/local/bin/hister-status; do
+for sys_link in /usr/local/bin/drain_nogon_queue.py /usr/local/bin/nogon-status; do
     if [[ -e "${sys_link}" ]]; then
         if [[ -x "${sys_link}" ]]; then
             log_pass "Binaire système exécutable : ${sys_link}"
@@ -183,11 +183,11 @@ fi
 # ------------------------------------------------------------------------------
 log_section "4. Connectivité et disponibilité des URLs configurées"
 
-# Service Hister (127.0.0.1:4433)
+# Service Nogon (127.0.0.1:4433)
 if nc -z -w 2 127.0.0.1 4433 2>/dev/null; then
-    log_pass "Service Hister accessible sur http://127.0.0.1:4433"
+    log_pass "Service Nogon accessible sur http://127.0.0.1:4433"
 else
-    log_warn "Service Hister non détecté sur 127.0.0.1:4433 (démon hors ligne ou port différent)"
+    log_warn "Service Nogon non détecté sur 127.0.0.1:4433 (démon hors ligne ou port différent)"
 fi
 
 # FlareSolverr (127.0.0.1:8191)

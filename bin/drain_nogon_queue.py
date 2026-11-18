@@ -14,9 +14,9 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock, Event
 
 DATA_DIR = os.getenv("FRESHRSS_DATA", "/opt/freshrss/data")
-STATUS_FILE = os.path.join(DATA_DIR, "hister-drain-status.json")
-WORKERS = max(1, int(os.getenv("HISTER_WORKERS", "1")))
-REQUEST_DELAY = max(0.0, float(os.getenv("HISTER_DELAY", "0.25")))
+STATUS_FILE = os.path.join(DATA_DIR, "nogon-drain-status.json")
+WORKERS = max(1, int(os.getenv("NOGON_WORKERS", "1")))
+REQUEST_DELAY = max(0.0, float(os.getenv("NOGON_DELAY", "0.25")))
 BACKOFF_THRESHOLD = 3
 BACKOFF_SECONDS = 15
 PERMANENT_HTTP_ERRORS = {400, 404, 410, 422}
@@ -47,15 +47,15 @@ def write_status(data):
 
 
 def find_queue_files():
-    files = glob.glob(os.path.join(DATA_DIR, "hister-queue-*.jsonl*"))
+    files = glob.glob(os.path.join(DATA_DIR, "nogon-queue-*.jsonl*"))
     return sorted(f for f in files if not f.endswith((".lock", ".tmp")))
 
 
 def detect_username(queue_files):
-    username = os.getenv("HISTER_USER", "").strip()
+    username = os.getenv("NOGON_USER", "").strip()
     if not username and queue_files:
         basename = os.path.basename(queue_files[0])
-        m = re.match(r"^hister-queue-(.+?)\.jsonl", basename)
+        m = re.match(r"^nogon-queue-(.+?)\.jsonl", basename)
         if m:
             username = m.group(1)
 
@@ -66,9 +66,9 @@ def detect_username(queue_files):
     return username
 
 
-def resolve_hister_credentials(username):
-    env_url = os.getenv("HISTER_URL", "").strip()
-    env_token = os.getenv("HISTER_TOKEN", "").strip()
+def resolve_nogon_credentials(username):
+    env_url = os.getenv("NOGON_URL", "").strip()
+    env_token = os.getenv("NOGON_TOKEN", "").strip()
     if env_url and env_token:
         return env_url, env_token
 
@@ -84,7 +84,7 @@ def resolve_hister_credentials(username):
         if (file_exists($p)) {
             $c = @include $p;
             if (is_array($c)) {
-                $ext = $c['extensions']['Hister'] ?? $c['extensions']['xExtension-Hister'] ?? [];
+                $ext = $c['extensions']['Nogon'] ?? $c['extensions']['xExtension-Nogon'] ?? [];
                 if (!empty($ext['api_url'])) $res['api_url'] = $ext['api_url'];
                 if (!empty($ext['endpoint_path'])) $res['endpoint_path'] = $ext['endpoint_path'];
                 if (!empty($ext['api_token'])) $res['api_token'] = $ext['api_token'];
@@ -126,13 +126,13 @@ def acquire_lock(lock_path, max_wait=60):
     sys.exit(1)
 
 
-def send_to_hister(api_url, api_token, payload):
+def send_to_nogon(api_url, api_token, payload):
     headers = {
         "Content-Type": "application/json; charset=UTF-8",
         "Accept": "application/json",
         "Origin": "same-origin",
         "Authorization": f"Bearer {api_token}",
-        "User-Agent": "FreshRSS-Hister-Bulk/1.3",
+        "User-Agent": "FreshRSS-Nogon-Bulk/1.3",
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
@@ -157,15 +157,15 @@ def main():
         return
 
     username = detect_username(initial_files)
-    api_url, api_token = resolve_hister_credentials(username)
+    api_url, api_token = resolve_nogon_credentials(username)
     if not api_url or not api_token:
-        err = "Erreur critique : URL ou Jeton Hister introuvable dans la configuration FreshRSS."
+        err = "Erreur critique : URL ou Jeton Nogon introuvable dans la configuration FreshRSS."
         print(f"[-] {err}")
         write_status({"running": False, "processed": 0, "total": 0, "pct": 0.0, "message": err})
         sys.exit(1)
 
-    base_queue_file = os.path.join(DATA_DIR, f"hister-queue-{username}.jsonl")
-    dead_letter_file = os.path.join(DATA_DIR, f"hister-dead-{username}.jsonl")
+    base_queue_file = os.path.join(DATA_DIR, f"nogon-queue-{username}.jsonl")
+    dead_letter_file = os.path.join(DATA_DIR, f"nogon-dead-{username}.jsonl")
     lock_file = base_queue_file + ".lock"
 
     print(f"[*] Cible : {api_url} (workers={WORKERS}, delay={REQUEST_DELAY}s)")
@@ -224,7 +224,7 @@ def main():
                     unprocessed_payloads.append(payload)
                 return
 
-            outcome, code = send_to_hister(api_url, api_token, payload)
+            outcome, code = send_to_nogon(api_url, api_token, payload)
             should_backoff = False
 
             with stats_lock:
@@ -267,7 +267,7 @@ def main():
                     sys.stdout.flush()
 
             if should_backoff and not stop_event.is_set():
-                print(f"\n[!] Hister saturé/injoignable : pause de récupération ({BACKOFF_SECONDS}s)...")
+                print(f"\n[!] Nogon saturé/injoignable : pause de récupération ({BACKOFF_SECONDS}s)...")
                 stop_event.wait(BACKOFF_SECONDS)
             elif REQUEST_DELAY > 0 and not stop_event.is_set():
                 stop_event.wait(REQUEST_DELAY)

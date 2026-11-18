@@ -2,7 +2,7 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', function () {
-        const box = document.getElementById('hister-drain-box');
+        const box = document.getElementById('nogon-drain-box');
         if (!box) return;
 
         const statusUrl = box.getAttribute('data-status-url');

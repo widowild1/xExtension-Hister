@@ -1,8 +1,8 @@
-p.hister-action {
+p.nogon-action {
     margin-top: 1em;
 }
 
-p.hister-action button.hister-send-btn {
+p.nogon-action button.nogon-send-btn {
     cursor: pointer;
     background: transparent;
     border: none;
@@ -15,24 +15,24 @@ p.hister-action button.hister-send-btn {
     align-items: center;
 }
 
-p.hister-action button.hister-send-btn:hover {
+p.nogon-action button.nogon-send-btn:hover {
     color: #ff6b35;
 }
 
-p.hister-action button.hister-send-btn.loading {
+p.nogon-action button.nogon-send-btn.loading {
     opacity: 0.5;
     cursor: wait;
     pointer-events: none;
 }
 
-p.hister-action button.hister-send-btn.success {
+p.nogon-action button.nogon-send-btn.success {
     color: #28a745 !important;
 }
 
-p.hister-action button.hister-send-btn.queued {
+p.nogon-action button.nogon-send-btn.queued {
     color: #17a2b8 !important;
 }
 
-p.hister-action button.hister-send-btn.failed {
+p.nogon-action button.nogon-send-btn.failed {
     color: #dc3545 !important;
 }

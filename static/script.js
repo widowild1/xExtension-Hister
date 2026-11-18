@@ -2,7 +2,7 @@
     'use strict';
 
     document.addEventListener('click', function (event) {
-        const btn = event.target.closest('.hister-send-btn');
+        const btn = event.target.closest('.nogon-send-btn');
         if (!btn) {
             return;
         }
@@ -20,7 +20,7 @@
         const csrfToken = btn.getAttribute('data-csrf');
 
         const msgSending = btn.getAttribute('data-i18n-sending') || '⏳ Envoi...';
-        const msgSuccess = btn.getAttribute('data-i18n-success') || '✔ Transmis à Hister';
+        const msgSuccess = btn.getAttribute('data-i18n-success') || '✔ Transmis à Nogon';
         const msgQueued  = btn.getAttribute('data-i18n-queued')  || '⌛ En file d\'attente';
         const msgFailed  = btn.getAttribute('data-i18n-failed')  || '✖ Échec de transmission';
         const msgNetwork = btn.getAttribute('data-i18n-network') || '✖ Erreur réseau';

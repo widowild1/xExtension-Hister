@@ -85,7 +85,7 @@ jobs:
             exit 1
           fi
 
-          git remote add github "https://github.com/widowild1/xExtension-Hister.git"
+          git remote add github "https://github.com/widowild1/xExtension-Nogon.git"
           BASIC_AUTH=$(printf "widowild1:%s" "$GH_PAT" | base64 -w 0)
           git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $BASIC_AUTH"
           git push github release-public:main --force

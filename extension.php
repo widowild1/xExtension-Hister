@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-final class HisterExtension extends Minz_Extension {
+final class NogonExtension extends Minz_Extension {
 
     private const DEFAULT_URL = 'http://127.0.0.1:4433';
     private const DEFAULT_ENDPOINT = '/api/add';
@@ -27,7 +27,7 @@ final class HisterExtension extends Minz_Extension {
             }
         }
         $this->registerTranslates();
-        $this->registerController('hister');
+        $this->registerController('nogon');
 
         Minz_View::appendStyle($this->getFileUrl('style.css', 'css'));
         Minz_View::appendScript($this->getFileUrl('script.js', 'js'));
@@ -164,20 +164,20 @@ final class HisterExtension extends Minz_Extension {
     }
 
     public function addSendLink(FreshRSS_Entry $entry): FreshRSS_Entry {
-        $sendUrl = _url('hister', 'send');
-        $title = _t('ext.hister.send_button_title');
+        $sendUrl = _url('nogon', 'send');
+        $title = _t('ext.nogon.send_button_title');
 
         $entry->_content(
             $entry->content()
-            . '<p class="hister-action"><button type="button" class="hister-send-btn"'
+            . '<p class="nogon-action"><button type="button" class="nogon-send-btn"'
             . ' data-action="' . htmlspecialchars($sendUrl, ENT_QUOTES, 'UTF-8') . '"'
             . ' data-id="' . htmlspecialchars((string)$entry->id(), ENT_QUOTES, 'UTF-8') . '"'
             . ' data-csrf="' . FreshRSS_Auth::csrfToken() . '"'
-            . ' data-i18n-sending="' . htmlspecialchars(_t('ext.hister.js_sending'), ENT_QUOTES, 'UTF-8') . '"'
-            . ' data-i18n-success="' . htmlspecialchars(_t('ext.hister.js_success'), ENT_QUOTES, 'UTF-8') . '"'
-            . ' data-i18n-queued="' . htmlspecialchars(_t('ext.hister.js_queued'), ENT_QUOTES, 'UTF-8') . '"'
-            . ' data-i18n-failed="' . htmlspecialchars(_t('ext.hister.js_failed'), ENT_QUOTES, 'UTF-8') . '"'
-            . ' data-i18n-network="' . htmlspecialchars(_t('ext.hister.js_network_error'), ENT_QUOTES, 'UTF-8') . '"'
+            . ' data-i18n-sending="' . htmlspecialchars(_t('ext.nogon.js_sending'), ENT_QUOTES, 'UTF-8') . '"'
+            . ' data-i18n-success="' . htmlspecialchars(_t('ext.nogon.js_success'), ENT_QUOTES, 'UTF-8') . '"'
+            . ' data-i18n-queued="' . htmlspecialchars(_t('ext.nogon.js_queued'), ENT_QUOTES, 'UTF-8') . '"'
+            . ' data-i18n-failed="' . htmlspecialchars(_t('ext.nogon.js_failed'), ENT_QUOTES, 'UTF-8') . '"'
+            . ' data-i18n-network="' . htmlspecialchars(_t('ext.nogon.js_network_error'), ENT_QUOTES, 'UTF-8') . '"'
             . ' title="' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '">'
             . '⚡ ' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</button></p>'
         );
@@ -186,7 +186,7 @@ final class HisterExtension extends Minz_Extension {
     }
 
     public function hookEntryBeforeInsert(FreshRSS_Entry $entry): FreshRSS_Entry {
-        $this->sendToHister($entry);
+        $this->sendToNogon($entry);
         return $entry;
     }
 
@@ -261,7 +261,7 @@ final class HisterExtension extends Minz_Extension {
                 }
             }
         } catch (\Throwable $e) {
-            Minz_Log::warning('Hister: lecture des labels impossible (' . $e->getMessage() . ')');
+            Minz_Log::warning('Nogon: lecture des labels impossible (' . $e->getMessage() . ')');
         }
 
         return array_values(array_unique($names));
@@ -275,7 +275,7 @@ final class HisterExtension extends Minz_Extension {
     private function stateFilePath(): string {
         $user = (string)(Minz_User::name() ?? '_');
         $user = preg_replace('/[^A-Za-z0-9_.-]/', '_', $user) ?? '_';
-        return DATA_PATH . '/hister-state-' . $user . '.json';
+        return DATA_PATH . '/nogon-state-' . $user . '.json';
     }
 
     /** @return array<string,string> */
@@ -324,7 +324,7 @@ final class HisterExtension extends Minz_Extension {
                 $rows = $entryDAO->listWhere($type, 0, FreshRSS_Entry::STATE_ALL, order: 'DESC', limit: 200);
                 $entries = $rows;
             } catch (\Throwable $e) {
-                Minz_Log::error('Hister: lecture des articles impossible (' . $e->getMessage() . ')');
+                Minz_Log::error('Nogon: lecture des articles impossible (' . $e->getMessage() . ')');
                 continue;
             }
 
@@ -366,7 +366,7 @@ final class HisterExtension extends Minz_Extension {
         return $this->lastQueued;
     }
 
-    public function sendToHister(FreshRSS_Entry $entry, bool $withLabels = false, bool $queue = true, bool $fetchNow = false): bool {
+    public function sendToNogon(FreshRSS_Entry $entry, bool $withLabels = false, bool $queue = true, bool $fetchNow = false): bool {
         $status = $this->submit($entry, $withLabels, $queue, $fetchNow);
         $this->lastQueued = ($status === 'queued');
         return $status === 'sent';
@@ -453,7 +453,7 @@ final class HisterExtension extends Minz_Extension {
             'Content-Type: application/json; charset=UTF-8',
             'Accept: application/json',
             'Origin: same-origin',
-            'User-Agent: FreshRSS-Hister-Client/2.5.1',
+            'User-Agent: FreshRSS-Nogon-Client/2.5.1',
         ];
 
         $token = $this->getApiToken();
@@ -485,47 +485,47 @@ final class HisterExtension extends Minz_Extension {
 
         if ($curlError !== '') {
             self::$circuitOpen = true;
-            Minz_Log::warning('Hister: instance injoignable (' . $curlError . '), mise en file.');
+            Minz_Log::warning('Nogon: instance injoignable (' . $curlError . '), mise en file.');
             return 'retry';
         }
 
         if ($httpCode >= 200 && $httpCode < 300) {
-            Minz_Log::debug('Hister: envoyé ' . $url . ' (HTTP ' . $httpCode . ')');
+            Minz_Log::debug('Nogon: envoyé ' . $url . ' (HTTP ' . $httpCode . ')');
             return 'ok';
         }
 
         if ($httpCode === 409) {
-            Minz_Log::debug('Hister: déjà présent ' . $url . ' (HTTP 409)');
+            Minz_Log::debug('Nogon: déjà présent ' . $url . ' (HTTP 409)');
             return 'ok';
         }
 
         if ($httpCode === 0 || $httpCode === 401 || $httpCode === 403 || $httpCode === 408 || $httpCode === 429 || $httpCode >= 500) {
             self::$circuitOpen = true;
-            Minz_Log::warning('Hister: HTTP ' . $httpCode . ', envois suspendus. ' . mb_substr((string)$response, 0, 150));
+            Minz_Log::warning('Nogon: HTTP ' . $httpCode . ', envois suspendus. ' . mb_substr((string)$response, 0, 150));
             return 'retry';
         }
 
-        Minz_Log::error('Hister: refus HTTP ' . $httpCode . ' pour ' . $url . ' : ' . mb_substr((string)$response, 0, 150));
+        Minz_Log::error('Nogon: refus HTTP ' . $httpCode . ' pour ' . $url . ' : ' . mb_substr((string)$response, 0, 150));
         return 'drop';
     }
 
     private function queuePath(): string {
         $user = (string)(Minz_User::name() ?? '_');
         $user = preg_replace('/[^A-Za-z0-9_.-]/', '_', $user) ?? '_';
-        return DATA_PATH . '/hister-queue-' . $user . '.jsonl';
+        return DATA_PATH . '/nogon-queue-' . $user . '.jsonl';
     }
 
     /** @param array<string,mixed> $payload */
     private function enqueue(array $payload, bool $fetch = false): bool {
         $path = $this->queuePath();
         if (is_file($path) && (int)filesize($path) > self::MAX_QUEUE_BYTES) {
-            Minz_Log::error('Hister: file pleine (' . self::MAX_QUEUE_BYTES . ' octets). Rejet : ' . ($payload['url'] ?? ''));
+            Minz_Log::error('Nogon: file pleine (' . self::MAX_QUEUE_BYTES . ' octets). Rejet : ' . ($payload['url'] ?? ''));
             return false;
         }
 
         $line = json_encode(['queued_at' => time(), 'fetch' => $fetch, 'payload' => $payload], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if ($line === false || @file_put_contents($path, $line . "\n", FILE_APPEND | LOCK_EX) === false) {
-            Minz_Log::error('Hister: écriture impossible dans la file ' . $path);
+            Minz_Log::error('Nogon: écriture impossible dans la file ' . $path);
             return false;
         }
 
@@ -722,7 +722,7 @@ final class HisterExtension extends Minz_Extension {
 
         // Blocage SSRF avant tout appel à FlareSolverr
         if (!$this->isSafeUrlForScraping($url)) {
-            Minz_Log::warning('Hister Anti-SSRF: tentative de scraping bloquée pour ' . $url);
+            Minz_Log::warning('Nogon Anti-SSRF: tentative de scraping bloquée pour ' . $url);
             return ['status' => 'fail', 'html' => null];
         }
 
@@ -749,7 +749,7 @@ final class HisterExtension extends Minz_Extension {
 
         if ($curlError !== '' || $httpCode === 0 || $httpCode >= 502) {
             self::$flareDown = true;
-            Minz_Log::warning('Hister: FlareSolverr injoignable (' . ($curlError !== '' ? $curlError : 'HTTP ' . $httpCode) . ').');
+            Minz_Log::warning('Nogon: FlareSolverr injoignable (' . ($curlError !== '' ? $curlError : 'HTTP ' . $httpCode) . ').');
             return ['status' => 'down', 'html' => null];
         }
 
@@ -757,7 +757,7 @@ final class HisterExtension extends Minz_Extension {
         $solution = is_array($data) ? ($data['solution'] ?? null) : null;
 
         if (!is_array($data) || ($data['status'] ?? '') !== 'ok' || !is_array($solution)) {
-            Minz_Log::warning('Hister: FlareSolverr n\'a pas pu charger ' . $url . ' : ' . mb_substr((string)($data['message'] ?? $httpCode), 0, 150));
+            Minz_Log::warning('Nogon: FlareSolverr n\'a pas pu charger ' . $url . ' : ' . mb_substr((string)($data['message'] ?? $httpCode), 0, 150));
             return ['status' => 'fail', 'html' => null];
         }
 
@@ -765,7 +765,7 @@ final class HisterExtension extends Minz_Extension {
         $html = (string)($solution['response'] ?? '');
 
         if ($pageStatus < 200 || $pageStatus >= 300 || trim($html) === '' || strlen($html) > self::MAX_HTML_BYTES) {
-            Minz_Log::warning('Hister: page invalide via FlareSolverr (' . $url . ', statut ' . $pageStatus . ').');
+            Minz_Log::warning('Nogon: page invalide via FlareSolverr (' . $url . ', statut ' . $pageStatus . ').');
             return ['status' => 'fail', 'html' => null];
         }
 
@@ -801,7 +801,7 @@ final class HisterExtension extends Minz_Extension {
     /**
      * Valide l'URL et le Token auprès d'un endpoint authentifié (/api/profile).
      */
-    public function testHisterInstance(): string {
+    public function testNogonInstance(): string {
         $ch = curl_init();
         $targetUrl = rtrim($this->getApiUrl(), '/') . '/api/profile';
         $headers = ['Accept: application/json'];
@@ -827,23 +827,23 @@ final class HisterExtension extends Minz_Extension {
         curl_close($ch);
 
         if ($curlError !== '') {
-            return 'Hister injoignable : ' . $curlError;
+            return 'Nogon injoignable : ' . $curlError;
         }
 
         if ($httpCode >= 200 && $httpCode < 300) {
-            return 'Hister connecté et authentifié avec succès (HTTP ' . $httpCode . ').';
+            return 'Nogon connecté et authentifié avec succès (HTTP ' . $httpCode . ').';
         }
 
         if ($httpCode === 401 || $httpCode === 403) {
-            return 'Hister est joignable mais le Token API est refusé (HTTP ' . $httpCode . ').';
+            return 'Nogon est joignable mais le Token API est refusé (HTTP ' . $httpCode . ').';
         }
 
         // Si l'API renvoie 404 sur /api/profile, tester le endpoint configuré (/api/add)
         if ($httpCode === 404) {
-            return 'Hister est joignable (HTTP 404 sur /api/profile). Vérifiez votre endpoint.';
+            return 'Nogon est joignable (HTTP 404 sur /api/profile). Vérifiez votre endpoint.';
         }
 
-        return 'Hister a répondu avec le statut HTTP ' . $httpCode . ' : ' . mb_substr((string)$response, 0, 150);
+        return 'Nogon a répondu avec le statut HTTP ' . $httpCode . ' : ' . mb_substr((string)$response, 0, 150);
     }
 
     // ---------------------------------------------------------------------
@@ -959,7 +959,7 @@ final class HisterExtension extends Minz_Extension {
                 $rows = $entryDAO->listWhere('a', 0, FreshRSS_Entry::STATE_ALL, order: 'DESC', id_max: (string)$cursor, limit: 300);
                 $entries = $rows;
             } catch (\Throwable $e) {
-                Minz_Log::error('Hister: lecture impossible (' . $e->getMessage() . ')');
+                Minz_Log::error('Nogon: lecture impossible (' . $e->getMessage() . ')');
                 break;
             }
 
