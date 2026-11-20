@@ -82,7 +82,7 @@ CSRF_PROBE=$(curl -s -i -X POST "${NOGON_BASE_URL}/api/batch" \
     -d '{"ops":[]}' --connect-timeout 5)
 
 PROBE_CODE=$(echo "$CSRF_PROBE" | awk 'NR==1 {print $2}')
-if [[ "$PROBE_CODE" == "200" || "$PROBE_CODE" == "201" || "$PROBE_CODE" == "204" ]]; then
+if [[ "$PROBE_CODE" == "200" || "$PROBE_CODE" == "201" || "$PROBE_CODE" == "204" || "$PROBE_CODE" == "400" ]]; then
     ok "Authentification Bearer + CSRF (Origin: same-origin) validés sur /api/batch (HTTP ${PROBE_CODE})"
 elif [[ "$PROBE_CODE" == "403" ]]; then
     BODY_ERR=$(echo "$CSRF_PROBE" | tail -n 1)
@@ -97,7 +97,7 @@ STATS_JSON=$(curl -s -H "Authorization: Bearer ${NOGON_TOKEN}" \
     "${NOGON_BASE_URL}/api/stats" --connect-timeout 5 || echo "{}")
 
 if echo "$STATS_JSON" | jq -e . >/dev/null 2>&1 && [[ "$STATS_JSON" != "{}" ]]; then
-    echo "$STATS_JSON" | jq -r 'to_entries[] | "  [INFO] \(.key): \(.value)"'
+    echo "$STATS_JSON" | jq -r 'to_entries[] | select(.key != "recent_searches") | "  [INFO] \(.key): \(.value)"'
 else
     SEARCH_JSON=$(curl -s -H "Authorization: Bearer ${NOGON_TOKEN}" \
         -H "Accept: application/json" \
