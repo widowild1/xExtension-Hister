@@ -10,6 +10,7 @@ import signal
 import subprocess
 import urllib.request
 import urllib.error
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock, Event
 
@@ -136,13 +137,16 @@ def acquire_lock(lock_path, max_wait=60):
 
 
 def post_json(url, api_token, body_obj, timeout=60):
+    parsed_u = urllib.parse.urlsplit(url)
+    origin = f"{parsed_u.scheme}://{parsed_u.netloc}" if parsed_u.scheme and parsed_u.netloc else ""
     headers = {
         "Content-Type": "application/json; charset=UTF-8",
         "Accept": "application/json",
-        "Origin": "same-origin",
         "Authorization": f"Bearer {api_token}",
         "User-Agent": "FreshRSS-Nogon-Bulk/2.0",
     }
+    if origin:
+        headers["Origin"] = origin
     data = json.dumps(body_obj, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:

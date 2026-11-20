@@ -459,6 +459,7 @@ final class NogonExtension extends Minz_Extension {
         $token = $this->getApiToken();
         if ($token !== '') {
             $headers[] = 'Authorization: Bearer ' . $token;
+            $headers[] = 'Origin: same-origin';
         }
 
         $targetUrl = rtrim($this->getApiUrl(), '/') . '/' . ltrim($this->getEndpointPath(), '/');
@@ -809,6 +810,7 @@ final class NogonExtension extends Minz_Extension {
         $token = $this->getApiToken();
         if ($token !== '') {
             $headers[] = 'Authorization: Bearer ' . $token;
+            $headers[] = 'Origin: same-origin';
         }
 
         curl_setopt_array($ch, [
