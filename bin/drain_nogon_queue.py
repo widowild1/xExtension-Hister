@@ -145,10 +145,8 @@ def post_json(url, api_token, body_obj, timeout=60):
         "Authorization": f"Bearer {api_token}",
         "User-Agent": "FreshRSS-Nogon-Bulk/2.0",
         "Origin": "same-origin",
-        "Origin": "same-origin",
     }
-    if origin:
-        headers["Origin"] = origin
+    headers["Origin"] = "same-origin"
     data = json.dumps(body_obj, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
