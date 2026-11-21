@@ -145,6 +145,7 @@ def post_json(url, api_token, body_obj, timeout=60):
         "Authorization": f"Bearer {api_token}",
         "User-Agent": "FreshRSS-Nogon-Bulk/2.0",
         "Origin": "same-origin",
+        "Origin": "same-origin",
     }
     if origin:
         headers["Origin"] = origin
